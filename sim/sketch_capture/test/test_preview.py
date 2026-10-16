@@ -1,0 +1,37 @@
+import struct
+import zlib
+
+import numpy as np
+
+from sketch_capture.canvas import render_canvas
+from sketch_capture.preview import to_ascii, write_png
+
+
+def _canvas():
+    d = np.zeros((28, 28), dtype=np.uint8)
+    d[5:10, 3:6] = 255
+    return render_canvas(d)
+
+
+def test_ascii_shape_and_ink():
+    lines = to_ascii(_canvas()).split('\n')
+    assert len(lines) == 28
+    assert all(len(line) == 56 for line in lines)
+    assert lines[0].strip() == ''          # blank background
+    assert '#' in lines[6]                 # stroke rows show ink
+
+
+def test_png_roundtrip(tmp_path):
+    canvas = _canvas()
+    path = tmp_path / 'a.png'
+    write_png(str(path), canvas)
+    raw = path.read_bytes()
+    assert raw[:8] == b'\x89PNG\r\n\x1a\n'
+    width, height = struct.unpack('>II', raw[16:24])
+    assert (width, height) == (280, 280)
+    # decode the single IDAT chunk and compare pixels
+    idat_len = struct.unpack('>I', raw[33:37])[0]
+    data = zlib.decompress(raw[41:41 + idat_len])
+    rows = np.frombuffer(data, dtype=np.uint8).reshape(280, 281)
+    assert (rows[:, 0] == 0).all()
+    np.testing.assert_array_equal(rows[:, 1:], canvas)

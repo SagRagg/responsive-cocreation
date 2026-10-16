@@ -2,6 +2,8 @@
 
 from datetime import datetime
 
+import os
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
@@ -10,6 +12,7 @@ from std_msgs.msg import Bool
 
 from sketch_capture.canvas import CANVAS_SIZE, render_canvas
 from sketch_capture.mnist_loader import load_mnist_test
+from sketch_capture.preview import to_ascii, write_png
 from sketch_capture.trial_log import TrialLog
 from sketch_capture.trial_plan import build_trial_plan
 
@@ -21,6 +24,8 @@ class CaptureNode(Node):
         self.declare_parameter('seed', 42)
         self.declare_parameter('per_digit', 10)
         self.declare_parameter('csv_path', '')
+        self.declare_parameter('image_dir', '')
+        self.declare_parameter('print_ascii', False)
 
         dataset_dir = self.get_parameter('dataset_dir').value
         seed = self.get_parameter('seed').value
@@ -29,6 +34,12 @@ class CaptureNode(Node):
         if not csv_path:
             stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
             csv_path = f'~/sketch_capture/trials_seed{seed}_{stamp}.csv'
+
+        image_dir = self.get_parameter('image_dir').value
+        self.image_dir = os.path.expanduser(image_dir) if image_dir else ''
+        if self.image_dir:
+            os.makedirs(self.image_dir, exist_ok=True)
+        self.print_ascii = self.get_parameter('print_ascii').value
 
         self.images, self.labels = load_mnist_test(dataset_dir)
         self.plan = build_trial_plan(self.labels, per_digit, seed)
@@ -82,6 +93,13 @@ class CaptureNode(Node):
         self.get_logger().info(
             f'trial {self.next_trial}/{len(self.plan)}: '
             f'mnist index {index}, digit {label}')
+        # After the publish and the log row, so previews never delay the stamp.
+        if self.print_ascii:
+            self.get_logger().info('\n' + to_ascii(canvas))
+        if self.image_dir:
+            write_png(os.path.join(
+                self.image_dir, f'trial_{self.next_trial:03d}_digit{label}.png'),
+                canvas)
 
     def on_turn_done(self, msg):
         if not msg.data:

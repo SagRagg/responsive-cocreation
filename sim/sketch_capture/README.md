@@ -24,6 +24,7 @@ The topic contract is in [`docs/interfaces.md`](../../docs/interfaces.md).
 | `sketch_capture/trial_plan.py` | Seeded, class-balanced, shuffled trial selection |
 | `sketch_capture/canvas.py` | 28x28 to 280x280, inverted to black ink on white |
 | `sketch_capture/trial_log.py` | CSV ground-truth log |
+| `sketch_capture/preview.py` | Text preview and PNG writer for the sent image |
 | `sketch_capture/capture_node.py` | The ROS node (calls the modules above) |
 | `launch/sketch_capture.launch.py` | Launch file with the parameters below |
 | `scripts/fetch_mnist.sh` | One-time MNIST test download |
@@ -39,6 +40,9 @@ Only `rclpy` and `numpy` are used (no cv_bridge, OpenCV or ML frameworks).
 | `seed` | `42` | Seed for selection and order. Same seed = identical sequence, so use the same one for edge and cloud runs |
 | `per_digit` | `10` | Trials per digit (10 gives 100 trials) |
 | `csv_path` | empty | Trial log. Empty = new file `~/sketch_capture/trials_seed<seed>_<timestamp>.csv`. A path you set is overwritten |
+
+| `image_dir` | empty | If set, each sent image is also saved there as `trial_NNN_digitD.png` |
+| `print_ascii` | `false` | If `true`, a text picture of each sent image is printed in the launch terminal |
 
 CSV columns: `trial_number, mnist_index, true_label, publish_stamp_sec,
 publish_stamp_nanosec`. `mnist_index` is the position in the MNIST test set.

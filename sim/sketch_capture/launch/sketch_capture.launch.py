@@ -16,6 +16,10 @@ def generate_launch_description():
         DeclareLaunchArgument('csv_path', default_value='',
                               description='Trial log CSV; empty = timestamped file '
                                           'in ~/sketch_capture/'),
+        DeclareLaunchArgument('image_dir', default_value='',
+                              description='If set, save each sent image here as a PNG'),
+        DeclareLaunchArgument('print_ascii', default_value='false',
+                              description='Print a text preview of each sent image'),
         Node(
             package='sketch_capture',
             executable='capture_node',
@@ -27,6 +31,8 @@ def generate_launch_description():
                 'seed': ParameterValue(LaunchConfiguration('seed'), value_type=int),
                 'per_digit': ParameterValue(LaunchConfiguration('per_digit'), value_type=int),
                 'csv_path': ParameterValue(LaunchConfiguration('csv_path'), value_type=str),
+                'image_dir': ParameterValue(LaunchConfiguration('image_dir'), value_type=str),
+                'print_ascii': ParameterValue(LaunchConfiguration('print_ascii'), value_type=bool),
             }],
         ),
     ])
