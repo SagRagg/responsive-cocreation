@@ -1,0 +1,5 @@
+Create a .py script that runs the keras model without the use of the jupyter notebook file yah ?! Then commit this folder to the git
+
+- Create a script that runs the keras model to detect digits
+- Make sure the the script outputs a digit that has 90% accuracy/confidence
+- Create another script that calls the previous script as a ros node that publishes a digit and create a demo listener/subscriber node that will listen to the publisher, just as a test that it works.
