@@ -10,7 +10,7 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 from sensor_msgs.msg import Image
 from std_msgs.msg import Bool
 
-from sketch_capture.canvas import CANVAS_SIZE, render_canvas
+from sketch_capture.canvas import IMAGE_FORMATS, render_image
 from sketch_capture.mnist_loader import load_mnist_test
 from sketch_capture.preview import to_ascii, write_png
 from sketch_capture.trial_log import TrialLog
@@ -26,6 +26,7 @@ class CaptureNode(Node):
         self.declare_parameter('csv_path', '')
         self.declare_parameter('image_dir', '')
         self.declare_parameter('print_ascii', False)
+        self.declare_parameter('image_format', 'mnist')
 
         dataset_dir = self.get_parameter('dataset_dir').value
         seed = self.get_parameter('seed').value
@@ -40,6 +41,11 @@ class CaptureNode(Node):
         if self.image_dir:
             os.makedirs(self.image_dir, exist_ok=True)
         self.print_ascii = self.get_parameter('print_ascii').value
+        self.image_format = self.get_parameter('image_format').value
+        if self.image_format not in IMAGE_FORMATS:
+            raise ValueError(
+                f'image_format must be one of {IMAGE_FORMATS}, '
+                f'got {self.image_format!r}')
 
         self.images, self.labels = load_mnist_test(dataset_dir)
         self.plan = build_trial_plan(self.labels, per_digit, seed)
@@ -57,7 +63,7 @@ class CaptureNode(Node):
 
         self.get_logger().info(
             f'{len(self.plan)} trials (seed {seed}, {per_digit} per digit), '
-            f'logging to {self.log.path}')
+            f'{self.image_format} images, logging to {self.log.path}')
 
     def try_publish(self):
         if self.finished or self.awaiting_done:
@@ -71,16 +77,17 @@ class CaptureNode(Node):
 
     def publish_trial(self):
         index = self.plan[self.next_trial]
-        canvas = render_canvas(self.images[index])
+        image = render_image(self.images[index], self.image_format)
+        size = image.shape[0]
 
         msg = Image()
         msg.header.frame_id = 'canvas'
-        msg.height = CANVAS_SIZE
-        msg.width = CANVAS_SIZE
+        msg.height = size
+        msg.width = size
         msg.encoding = 'mono8'
         msg.is_bigendian = 0
-        msg.step = CANVAS_SIZE
-        msg.data = canvas.tobytes()
+        msg.step = size
+        msg.data = image.tobytes()
         # Stamp last: this instant is the "Done" that starts the latency clock.
         msg.header.stamp = self.get_clock().now().to_msg()
         self.pub.publish(msg)
@@ -95,11 +102,11 @@ class CaptureNode(Node):
             f'mnist index {index}, digit {label}')
         # After the publish and the log row, so previews never delay the stamp.
         if self.print_ascii:
-            self.get_logger().info('\n' + to_ascii(canvas))
+            self.get_logger().info('\n' + to_ascii(image))
         if self.image_dir:
             write_png(os.path.join(
                 self.image_dir, f'trial_{self.next_trial:03d}_digit{label}.png'),
-                canvas)
+                image)
 
     def on_turn_done(self, msg):
         if not msg.data:

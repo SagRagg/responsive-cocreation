@@ -20,6 +20,9 @@ def generate_launch_description():
                               description='If set, save each sent image here as a PNG'),
         DeclareLaunchArgument('print_ascii', default_value='false',
                               description='Print a text preview of each sent image'),
+        DeclareLaunchArgument('image_format', default_value='mnist',
+                              description='mnist = 28x28 white on black; '
+                                          'canvas = 280x280 black on white'),
         Node(
             package='sketch_capture',
             executable='capture_node',
@@ -33,6 +36,7 @@ def generate_launch_description():
                 'csv_path': ParameterValue(LaunchConfiguration('csv_path'), value_type=str),
                 'image_dir': ParameterValue(LaunchConfiguration('image_dir'), value_type=str),
                 'print_ascii': ParameterValue(LaunchConfiguration('print_ascii'), value_type=bool),
+                'image_format': ParameterValue(LaunchConfiguration('image_format'), value_type=str),
             }],
         ),
     ])

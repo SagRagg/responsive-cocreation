@@ -2,6 +2,7 @@ import struct
 import zlib
 
 import numpy as np
+import pytest
 
 from sketch_capture.canvas import render_canvas
 from sketch_capture.preview import to_ascii, write_png
@@ -35,3 +36,25 @@ def test_png_roundtrip(tmp_path):
     rows = np.frombuffer(data, dtype=np.uint8).reshape(280, 281)
     assert (rows[:, 0] == 0).all()
     np.testing.assert_array_equal(rows[:, 1:], canvas)
+
+
+def _mnist():
+    d = np.zeros((28, 28), dtype=np.uint8)
+    d[5:10, 3:6] = 255
+    return d
+
+
+def test_ascii_same_picture_for_both_formats():
+    assert to_ascii(_mnist()) == to_ascii(_canvas())
+
+
+def test_ascii_rejects_other_sizes():
+    with pytest.raises(ValueError):
+        to_ascii(np.zeros((10, 10), dtype=np.uint8))
+
+
+def test_png_of_mnist_image(tmp_path):
+    path = tmp_path / 'm.png'
+    write_png(str(path), _mnist())
+    width, height = struct.unpack('>II', path.read_bytes()[16:24])
+    assert (width, height) == (28, 28)

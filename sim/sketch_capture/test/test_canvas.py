@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from sketch_capture.canvas import render_canvas
+from sketch_capture.canvas import render_canvas, render_image
 
 
 def _digit():
@@ -31,3 +31,30 @@ def test_upscale_blocks():
 def test_wrong_shape():
     with pytest.raises(ValueError):
         render_canvas(np.zeros((10, 10), dtype=np.uint8))
+
+
+def test_mnist_format_is_raw_digit():
+    digit = _digit()
+    out = render_image(digit, 'mnist')
+    assert out.shape == (28, 28) and out.dtype == np.uint8
+    np.testing.assert_array_equal(out, digit)   # white digit on black
+    assert out.nbytes == 784
+
+
+def test_canvas_format_matches_render_canvas():
+    np.testing.assert_array_equal(render_image(_digit(), 'canvas'),
+                                  render_canvas(_digit()))
+
+
+def test_default_format_is_mnist():
+    assert render_image(_digit()).shape == (28, 28)
+
+
+def test_unknown_format():
+    with pytest.raises(ValueError):
+        render_image(_digit(), 'jpeg')
+
+
+def test_mnist_format_checks_shape():
+    with pytest.raises(ValueError):
+        render_image(np.zeros((10, 10), dtype=np.uint8), 'mnist')

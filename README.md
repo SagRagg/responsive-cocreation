@@ -54,8 +54,8 @@ simulated arm should work unchanged on hardware later.
 |---|---|
 | Simulated Gen3 launches with fake hardware and RViz | Working |
 | Arm accepts joint trajectory commands | Working (standard `ros2_control` interface) |
-| `/strokes` to arm motion (drawing node) | Not in this folder yet |
-| `/turn_done` publisher | Not in this folder yet |
+| `sketch_capture`: MNIST sketches on `/sketch_image` | Working ([`sim/sketch_capture`](sim/sketch_capture)) |
+| `/strokes` to arm motion, `/turn_done` publisher | Written and unit-tested, not yet run in the VM ([`sim/arm_drawing`](sim/arm_drawing)) |
 
 ## Prerequisites
 
@@ -209,4 +209,7 @@ For the VM and the Pi to exchange the topics in the interface contract:
 
 - [`docs/interfaces.md`](docs/interfaces.md): topic and message contract
 - [`perception`](perception): digit recognition on the Pi
-- `sim/`: simulation scripts and ROS 2 nodes (to be added)
+- [`sim/sketch_capture`](sim/sketch_capture): replays MNIST digits as the
+  human's sketch
+- [`sim/arm_drawing`](sim/arm_drawing): draws the recognised digit on the arm
+  and publishes `/turn_done`
