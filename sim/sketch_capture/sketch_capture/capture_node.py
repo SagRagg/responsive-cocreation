@@ -8,9 +8,10 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 from sensor_msgs.msg import Image
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, String
 
 from sketch_capture.canvas import IMAGE_FORMATS, render_image
+from sketch_capture.ground_truth import ground_truth_json
 from sketch_capture.mnist_loader import load_mnist_test
 from sketch_capture.preview import to_ascii, write_png
 from sketch_capture.trial_log import TrialLog
@@ -54,6 +55,7 @@ class CaptureNode(Node):
         qos = QoSProfile(reliability=QoSReliabilityPolicy.RELIABLE,
                          history=QoSHistoryPolicy.KEEP_LAST, depth=1)
         self.pub = self.create_publisher(Image, '/sketch_image', qos)
+        self.truth_pub = self.create_publisher(String, '/ground_truth', 10)
         self.create_subscription(Bool, '/turn_done', self.on_turn_done, 10)
 
         self.next_trial = 0          # index into self.plan of the next publish
@@ -95,6 +97,12 @@ class CaptureNode(Node):
         self.next_trial += 1
         self.awaiting_done = True
         label = int(self.labels[index])
+        # Right after the image; the stamp is the join key for listeners.
+        truth = String()
+        truth.data = ground_truth_json(
+            self.next_trial, index, label,
+            msg.header.stamp.sec, msg.header.stamp.nanosec)
+        self.truth_pub.publish(truth)
         self.log.write(self.next_trial, index, label,
                        msg.header.stamp.sec, msg.header.stamp.nanosec)
         self.get_logger().info(

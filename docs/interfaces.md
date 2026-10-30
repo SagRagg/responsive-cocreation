@@ -16,6 +16,7 @@ agree it first, then update this file in the same pull request as the code.
 | `/digit_prediction` | `std_msgs/Int32` | Pi -> sim | Digit the Pi recognised (0-9) |
 | `/strokes` | `std_msgs/String` (JSON) | Pi -> sim | Clean template strokes for the recognised digit, plus trial number and the sketch's stamp |
 | `/turn_done` | `std_msgs/Bool` | sim -> capture, Pi | `true` when the arm finishes drawing. Always `Bool`, never `Empty` |
+| `/ground_truth` | `std_msgs/String` (JSON) | capture (VM) -> listeners | The true label of the sketch just sent. For measurement only (the dashboard); the perception node must not use it |
 
 ## Where the nodes run
 Perception and the stroke lookup run together on the machine under test (Pi
@@ -74,6 +75,27 @@ One `std_msgs/String` per turn. `data` is a JSON object:
   templates, so a template change must be made on both sides.
 - QoS: reliable, keep last 10.
 
+## Ground truth format (`/ground_truth`)
+Published by capture straight after each `/sketch_image`. One `std_msgs/String`
+per turn, `data` is a JSON object:
+
+```json
+{
+  "trial": 1,
+  "mnist_index": 6788,
+  "digit": 7,
+  "stamp": {"sec": 1761540000, "nanosec": 123456789}
+}
+```
+
+- `trial` and `mnist_index` match `trial_number` and `mnist_index` in the
+  capture CSV, `digit` matches `true_label`.
+- `stamp` is exactly the `/sketch_image` `header.stamp` of that trial. It is
+  the join key: match it to `/strokes` `source_stamp`. Never pair messages by
+  `trial`, because the perception node's counter can drift from capture's
+  (for example after a restart).
+- QoS: reliable, keep last 10.
+
 ## Latency timestamps
 - Capture stamps `/sketch_image` `header.stamp` at the moment of publishing.
   Latency is measured from this stamp.
@@ -81,7 +103,9 @@ One `std_msgs/String` per turn. `data` is a JSON object:
   sketch's stamp back as `source_stamp`, and the sim logs its own receive time
   for both topics, so sketch-to-strokes latency = sim receive time of
   `/strokes` minus `source_stamp`.
-- Logs from all nodes join on trial number.
+- Logs from all nodes join on the sketch stamp (`source_stamp` in `/strokes`,
+  `stamp` in `/ground_truth`), not on trial number: the perception node keeps
+  its own counter, which can drift from capture's.
 - Clocks must be synced across machines (chrony), or latency is measured
   as round-trip on the Pi's clock only.
 
