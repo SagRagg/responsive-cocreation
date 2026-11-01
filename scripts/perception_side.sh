@@ -94,6 +94,14 @@ mkdir -p "$CSV_DIR"
 stamp=$(date +%Y%m%d-%H%M%S)
 env_cmd="source $(printf %q "$ROS_SETUP") && export ROS_DOMAIN_ID=$DOMAIN"
 
+# Discovery settings typed into the tmux windows too: tmux may be running
+# with an older environment than this shell (matters for ROS_STATIC_PEERS).
+for var in ROS_STATIC_PEERS ROS_AUTOMATIC_DISCOVERY_RANGE ROS_LOCALHOST_ONLY RMW_IMPLEMENTATION; do
+    if [[ -n ${!var:-} ]]; then
+        env_cmd+=" && export $var=$(printf %q "${!var}")"
+    fi
+done
+
 tmux new-session -d -s "$SESSION" -n perception
 send perception "$env_cmd && $(printf %q "$VENV/bin/python") $(printf %q "$PERCEPTION_NODE")"
 echo "wait:  loading the model (the first start is slow on a Pi) ..."
