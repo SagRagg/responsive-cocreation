@@ -11,6 +11,9 @@ filming the human's sketch by replaying MNIST **test** digits, one per turn.
 - Waits for a subscriber, publishes trial 1, then publishes the next trial
   every time it receives `true` on `/turn_done` (`std_msgs/Bool`). There is no
   timeout, so no trial is skipped. `false` is ignored.
+- Publishes the true label on `/ground_truth` (`std_msgs/String`, JSON) straight
+  after each image, carrying the image's `header.stamp` as the join key. Format
+  in [`docs/interfaces.md`](../../docs/interfaces.md).
 - `header.stamp` is set to the current ROS time at the moment of publishing.
   This is the "Done" instant that starts the latency clock.
 - After the last trial's `/turn_done` it logs completion and exits.
@@ -26,6 +29,7 @@ The topic contract is in [`docs/interfaces.md`](../../docs/interfaces.md).
 | `sketch_capture/trial_plan.py` | Seeded, class-balanced, shuffled trial selection |
 | `sketch_capture/canvas.py` | Builds the published image in either format |
 | `sketch_capture/trial_log.py` | CSV ground-truth log |
+| `sketch_capture/ground_truth.py` | JSON payload for `/ground_truth` |
 | `sketch_capture/preview.py` | Text preview and PNG writer for the sent image |
 | `sketch_capture/capture_node.py` | The ROS node (calls the modules above) |
 | `launch/sketch_capture.launch.py` | Launch file with the parameters below |
