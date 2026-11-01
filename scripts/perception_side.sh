@@ -4,6 +4,9 @@
 #
 #   scripts/perception_side.sh edge       start (perception first, then dashboard)
 #   scripts/perception_side.sh cloud      same, dashboard bound to the Tailscale IP
+#   scripts/perception_side.sh new-run edge|cloud
+#                                         restart only the dashboard (and CPU sampler)
+#                                         for a fresh CSV, keeping perception warm
 #   scripts/perception_side.sh stop       stop everything and print the CPU summary
 #
 # Assumes everything is already installed and built. Override with env vars:
@@ -57,8 +60,10 @@ stop() {
 
 [[ ${1:-} == stop ]] && { stop; exit 0; }
 
+mode=start
+if [[ ${1:-} == new-run ]]; then mode=new-run; shift; fi
 placement=${1:-}
-[[ $placement == edge || $placement == cloud ]] || die "usage: $0 edge|cloud|stop"
+[[ $placement == edge || $placement == cloud ]] || die "usage: $0 edge|cloud|new-run edge|cloud|stop"
 
 # ---- preflight: fail early, say what is missing ----------------------------
 command -v tmux >/dev/null            || die "tmux is not installed"
@@ -89,7 +94,6 @@ else
 fi
 
 # ---- start ------------------------------------------------------------------
-tmux has-session -t "$SESSION" 2>/dev/null && { tmux kill-session -t "$SESSION"; echo "note:  replaced the old '$SESSION' session"; }
 mkdir -p "$CSV_DIR"
 stamp=$(date +%Y%m%d-%H%M%S)
 env_cmd="source $(printf %q "$ROS_SETUP") && export ROS_DOMAIN_ID=$DOMAIN"
@@ -102,14 +106,22 @@ for var in ROS_STATIC_PEERS ROS_AUTOMATIC_DISCOVERY_RANGE ROS_LOCALHOST_ONLY RMW
     fi
 done
 
-tmux new-session -d -s "$SESSION" -n perception
-send perception "$env_cmd && $(printf %q "$VENV/bin/python") $(printf %q "$PERCEPTION_NODE")"
-echo "wait:  loading the model (the first start is slow on a Pi) ..."
-if ! wait_for "$SESSION:perception" "CNN model loaded" 240; then
-    tmux capture-pane -p -t "$SESSION:perception" | tail -15
-    die "perception did not report 'CNN model loaded'. Attach with: tmux attach -t $SESSION"
+if [[ $mode == new-run ]]; then
+    tmux has-session -t "$SESSION" 2>/dev/null || die "no '$SESSION' session: start it first with $0 $placement"
+    tmux kill-window -t "$SESSION:dashboard" 2>/dev/null || true
+    tmux kill-window -t "$SESSION:cpu" 2>/dev/null || true
+    ok "perception left running (still warm), starting a fresh dashboard run"
+else
+    tmux has-session -t "$SESSION" 2>/dev/null && { tmux kill-session -t "$SESSION"; echo "note:  replaced the old '$SESSION' session"; }
+    tmux new-session -d -s "$SESSION" -n perception
+    send perception "$env_cmd && $(printf %q "$VENV/bin/python") $(printf %q "$PERCEPTION_NODE")"
+    echo "wait:  loading the model (the first start is slow on a Pi) ..."
+    if ! wait_for "$SESSION:perception" "CNN model loaded" 240; then
+        tmux capture-pane -p -t "$SESSION:perception" | tail -15
+        die "perception did not report 'CNN model loaded'. Attach with: tmux attach -t $SESSION"
+    fi
+    ok "perception is up"
 fi
-ok "perception is up"
 
 tmux new-window -d -t "$SESSION" -n dashboard
 send dashboard "$env_cmd && python3 $(printf %q "$REPO/dashboard/telemetry_dashboard.py") --ros-args -p placement:=$placement -p bind:=$bind -p port:=$PORT -p csv_dir:=$(printf %q "$CSV_DIR")"
@@ -127,6 +139,8 @@ cat <<EOF
 
 Ready ($placement). Open   http://$shown:$PORT
 Then start the simulation side and run capture (scripts/sim_side.sh, scripts/capture.sh).
+The first inference after a start is slow (model warm-up): run a 10-trial dry run
+first, then "$0 new-run $placement", then the real run.
 Windows: tmux attach -t $SESSION    (Ctrl-b n = next window, Ctrl-b d = leave it running)
 When the run is over: scripts/perception_side.sh stop
 EOF

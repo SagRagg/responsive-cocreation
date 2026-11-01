@@ -59,6 +59,25 @@ branch, after a `git pull`. That folder differs per machine:
 
    This stops everything and prints the CPU summary of the run.
 
+## Warm-up first, then the real run
+
+The first inference after perception starts is slow (TensorFlow warm-up): in
+the dry runs it showed up as a single trial around 1.1 s on the cloud and
+about 180 ms on the Pi, which becomes the p95 of a 10-trial run. So do not
+count it. Run a dry run first, then start a fresh dashboard run with
+perception still warm:
+
+```bash
+scripts/capture.sh dry_01 1                 # VM: 10-trial dry run, warms perception up
+scripts/perception_side.sh new-run edge     # Pi/cloud: new dashboard CSV, perception left running
+scripts/capture.sh edge_01                  # VM: the real 30 trials
+```
+
+`capture.sh` also waits (up to 45 s) until perception, the arm and the
+dashboard are all matched before it publishes trial 1. Over the VPN the
+dashboard can be matched seconds after perception, and a sketch published
+before that never reaches it (the row then has no ground truth).
+
 Start order matters: capture publishes as soon as anything listens on
 `/sketch_image`, so perception (and the arm) must be up first. `capture.sh`
 refuses to start when it cannot see them. `FORCE=1` skips that check.
