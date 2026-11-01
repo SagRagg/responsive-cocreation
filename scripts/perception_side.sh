@@ -8,7 +8,7 @@
 #
 # Assumes everything is already installed and built. Override with env vars:
 #   PERCEPTION_NODE  path to mnist_perception_node.py (the checkout on main)
-#   VENV             Python venv with TensorFlow       (default ~/venv-tf)
+#   VENV             Python venv with TensorFlow       (default: the active venv, else ~/venv-tf)
 #   CSV_DIR          where the run CSVs and CPU log go (default ~/dashboard_logs)
 #   PORT, SESSION, ROS_SETUP, ROS_DOMAIN_ID
 
@@ -17,7 +17,7 @@ set -eo pipefail
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 SESSION=${SESSION:-run}
 PERCEPTION_NODE=${PERCEPTION_NODE:-$HOME/responsive-cocreation/perception/mnist_perception_node.py}
-VENV=${VENV:-$HOME/venv-tf}
+VENV=${VENV:-${VIRTUAL_ENV:-$HOME/venv-tf}}
 CSV_DIR=${CSV_DIR:-$HOME/dashboard_logs}
 PORT=${PORT:-8080}
 ROS_SETUP=${ROS_SETUP:-/opt/ros/jazzy/setup.bash}
