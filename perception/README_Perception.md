@@ -13,7 +13,6 @@ The project compares perception on a Raspberry Pi 5 and a Google Compute Engine 
 | Local standalone test | `local_mnist_predictor.py` | Select an MNIST image, print prediction and class scores, and display the image |
 | Cloud standalone test | `cloud_mnist_predictor_bigquery.py` | Run interactive predictions, time the prediction call and upload metrics to BigQuery |
 | Integrated ROS perception | `mnist_perception_node.py` | Receive `/sketch_image`, predict the digit and publish `/digit_prediction` and `/strokes` |
-| Camera prototype | `camera_digit_recognition.py` | Preprocess and classify a digit from a local camera region |
 
 The standalone BigQuery script is not the ROS perception node. Starting it does not publish drawing instructions or launch the arm.
 
@@ -29,7 +28,6 @@ Paths below are relative to `perception/` in the supplied repository snapshot.
 | `cloud_mnist_predictor_bigquery.py` | Interactive cloud recognition and BigQuery metrics |
 | `mnist_perception_node.py` | Native ROS 2 perception and stroke-template publication |
 | `prediction_listener_node.py` | Native ROS listener for digit predictions |
-| `camera_digit_recognition.py` | OpenCV camera preprocessing and recognition prototype |
 | `mnist_source_node.py` | Older native ROS source; incompatible completion-message type in the reviewed snapshot |
 | `README_GCP_CNN.md` | Detailed standalone GCP setup and logging guide |
 | `GCP_VM_BigQuery_Partner_Handoff.md` | Partner permissions, VM access and BigQuery handoff |
@@ -54,8 +52,6 @@ For controlled MNIST input:
 
 Ground-truth labels are used to check correctness, not passed into the CNN. Confidence is the largest model score and does not guarantee a correct prediction.
 
-The camera prototype has separate preprocessing: grayscale conversion, blur, thresholding, largest-contour selection, resizing and centring on a 28 × 28 canvas. Its input conditions differ from controlled MNIST replay.
-
 ## 4. Standalone local setup
 
 Run from the repository root. Create the environment only if an appropriate one does not already exist:
@@ -78,17 +74,6 @@ MNIST is loaded through Keras and may download on first use. Keep the dataset ca
 | `q` | Exit |
 
 Close the image window to continue when the plotting backend blocks. The local script prints the predicted digit, confidence and all ten class scores. It does not measure latency or save metrics.
-
-### Optional camera demo
-
-In a local environment with camera access and a graphical display:
-
-```bash
-python -m pip install opencv-python
-python perception/camera_digit_recognition.py --camera 0 --box-size 300
-```
-
-The script also accepts `--model PATH`. Press `q` in the camera window to exit. This prototype does not replace the integrated MNIST benchmark input.
 
 ## 5. Standalone cloud workflow
 
@@ -272,7 +257,7 @@ These checks are procedures, not a statement that the current deployment has pas
 
 | Symptom | Check |
 |---|---|
-| Model not found | Keep the exact `.keras` filename beside the script, or use a supported `--model` option |
+| Model not found | Keep `mnist_cnn_baseline.keras` beside the predictor script |
 | TensorFlow import/load failure | Active interpreter, supported platform and recorded working package versions |
 | `rclpy` not found | Source Jazzy and use the ROS-compatible interpreter |
 | MNIST download fails | Initial network access and dataset cache |
@@ -284,7 +269,6 @@ These checks are procedures, not a statement that the current deployment has pas
 | Plot unavailable over SSH | Use a noninteractive backend for the standalone cloud script |
 | BigQuery authentication/permission error | Attached VM service account, dataset access and VM scopes |
 | Trials appear misaligned | Join by source timestamp, not independently reset counters |
-| Low camera recognition quality | Lighting, background, framing and contour preprocessing; camera images differ from MNIST |
 
 ## 9. Submission and maintenance
 
@@ -292,7 +276,7 @@ Keep source, this README, the trained model and reviewed documentation. Document
 
 Before submission, clear notebook outputs and execution counts, remove personal kernel paths, and document the environment needed to rerun it. Keep the notebook's training code intact.
 
-Do not commit virtual environments, caches, private credentials, SSH keys or downloaded datasets. Supabase is not part of the current GCP workflow; remove obsolete environment files rather than presenting them as dependencies.
+Do not commit virtual environments, caches, private credentials, SSH keys or downloaded datasets. Keep environment files containing credentials out of version control.
 
 Suggested repository ignore rules:
 
