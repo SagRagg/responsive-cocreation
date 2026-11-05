@@ -1,3 +1,7 @@
+"""Tests for the seeded trial plan (sketch_capture.trial_plan): class balance,
+no repeats, reproducibility for a seed, and shuffled order.
+"""
+
 import numpy as np
 import pytest
 

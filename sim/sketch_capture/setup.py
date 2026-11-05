@@ -1,3 +1,8 @@
+"""Package setup for the sketch_capture ROS 2 package (ament_python).
+
+Installs the capture_node executable and its launch file.
+"""
+
 import os
 from glob import glob
 

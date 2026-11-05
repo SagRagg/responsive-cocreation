@@ -1,3 +1,14 @@
+"""Launch sketch_capture: replay seeded MNIST digits as the human's sketches.
+
+Starts capture_node, which publishes one digit per turn on /sketch_image and
+waits for /turn_done from arm_drawing before sending the next. Use the same
+`seed` and `per_digit` for the edge and cloud runs so both see identical
+trials in the same order.
+
+Example:
+    ros2 launch sketch_capture sketch_capture.launch.py seed:=42 image_format:=canvas
+"""
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
@@ -6,6 +17,11 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
+    """Declare the launch arguments and the capture node.
+
+    Returns:
+        LaunchDescription with one argument per node parameter.
+    """
     return LaunchDescription([
         DeclareLaunchArgument('dataset_dir', default_value='~/datasets/mnist',
                               description='Folder with the MNIST test IDX files'),
@@ -29,6 +45,9 @@ def generate_launch_description():
             name='sketch_capture',
             output='screen',
             emulate_tty=True,
+            # Launch arguments are strings. ParameterValue casts each to the
+            # type the node declares, so an empty path stays '' and
+            # 'false' becomes a bool instead of being rejected.
             parameters=[{
                 'dataset_dir': ParameterValue(LaunchConfiguration('dataset_dir'), value_type=str),
                 'seed': ParameterValue(LaunchConfiguration('seed'), value_type=int),

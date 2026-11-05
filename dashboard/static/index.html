@@ -14,6 +14,9 @@
 })();
 </script>
 <style>
+/* theme tokens: light defaults; dark under the media query (auto)
+   and again under [data-theme="dark"] (forced by the Theme button). Charts
+   read these through refreshColors(), so canvas colours follow the theme. */
 :root {
   color-scheme: light dark;
   --bg: #ffffff;
@@ -44,6 +47,7 @@
   --wrong-bg: rgba(198, 47, 47, 0.07);
   font-size: clamp(16px, 0.55vw + 9px, 21px);
 }
+/* dark tokens when the OS prefers dark and no light theme is forced */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0b0b0b;
@@ -121,7 +125,7 @@ button, input, select { font: inherit; color: inherit; }
 .muted { color: var(--muted); }
 .mono { font-variant-numeric: tabular-nums; }
 
-/* ---------- header ---------- */
+/* header */
 .top {
   position: sticky; top: 0; z-index: 20;
   background: var(--bg);
@@ -160,7 +164,7 @@ button, input, select { font: inherit; color: inherit; }
 .tab:hover { color: var(--text); }
 .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); font-weight: 500; }
 
-/* ---------- layout ---------- */
+/* layout */
 main { padding: 1.5rem; max-width: 2300px; margin: 0 auto; }
 .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 2.25rem 2.5rem; }
 .card { background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 1rem 0 0; min-width: 0; }
@@ -180,14 +184,14 @@ main { padding: 1.5rem; max-width: 2300px; margin: 0 auto; }
   .c-acc { grid-column: span 4; }
 }
 
-/* ---------- image ---------- */
+/* image */
 .imgbox { position: relative; width: min(100%, 15rem); aspect-ratio: 1; background: #000; border: 1px solid var(--border); border-radius: 2px; margin: 0 auto 0.8rem; }
 .imgbox canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
 .imgbox .ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; color: #9a9a9a; padding: 0.5rem; font-size: 0.9rem; }
 .trialline { font-size: 1.1rem; font-weight: 500; text-align: center; }
 .stateline { text-align: center; font-size: 0.95rem; font-weight: 400; color: var(--muted); }
 
-/* ---------- prediction ---------- */
+/* prediction */
 .digits { display: flex; gap: 1.5rem; flex-wrap: wrap; }
 .dbox { flex: 1 1 8rem; text-align: center; border: 0; border-radius: 0; padding: 0; min-width: 0; }
 .dbox .lbl { font-size: 0.85rem; font-weight: 400; text-transform: none; letter-spacing: 0.02em; color: var(--muted); }
@@ -199,14 +203,14 @@ main { padding: 1.5rem; max-width: 2300px; margin: 0 auto; }
 .verdict.none { color: var(--muted); font-weight: 400; }
 .curnums { margin-top: 0.4rem; text-align: center; font-size: 0.9rem; color: var(--muted); }
 
-/* ---------- accuracy ---------- */
+/* accuracy */
 .accgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 1.25rem; }
 .metric { border: 0; background: transparent; border-radius: 0; padding: 0; min-width: 0; }
 .metric .k { font-size: 0.85rem; font-weight: 400; color: var(--muted); }
 .metric .v { font-size: clamp(1.9rem, 2.3vw, 2.8rem); font-weight: 300; line-height: 1.15; font-variant-numeric: tabular-nums; }
 .metric .d { font-size: 0.85rem; color: var(--muted); }
 
-/* ---------- latency ---------- */
+/* latency */
 .latctl { display: flex; flex-wrap: wrap; gap: 0.4rem 1.5rem; align-items: center; margin-bottom: 0.8rem; }
 .chk { display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; font-weight: 400; }
 .chk input { width: 1rem; height: 1rem; accent-color: var(--text); }
@@ -234,7 +238,7 @@ main { padding: 1.5rem; max-width: 2300px; margin: 0 auto; }
 .tile .u { font-size: 0.75rem; font-weight: 400; color: var(--muted); margin-left: 0.2em; }
 .tile .note { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
 
-/* ---------- confusion ---------- */
+/* confusion */
 .cmwrap { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; gap: 0.4rem; max-width: 40rem; margin: 0 auto; }
 .cmtop { grid-column: 2; text-align: center; font-weight: 400; font-size: 0.85rem; color: var(--muted); }
 .cmleft { grid-row: 2; writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-weight: 400; font-size: 0.85rem; color: var(--muted); }
@@ -245,7 +249,7 @@ main { padding: 1.5rem; max-width: 2300px; margin: 0 auto; }
 .cm .c.diag { border: 1.5px solid var(--text); }
 .cmtotal { text-align: center; margin-top: 0.8rem; font-weight: 400; font-size: 0.9rem; color: var(--muted); }
 
-/* ---------- health ---------- */
+/* health */
 .percep { display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.8rem; border: 0; border-left: 2px solid var(--never); border-radius: 0; padding: 0.2rem 0 0.2rem 0.9rem; margin-bottom: 1.2rem; }
 .percep .t { font-size: 0.85rem; font-weight: 400; text-transform: none; letter-spacing: 0.02em; color: var(--muted); width: 100%; }
 .percep .w { font-size: 1.5rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.4em; }
@@ -270,7 +274,7 @@ main { padding: 1.5rem; max-width: 2300px; margin: 0 auto; }
 .clock.warn { border-left-color: var(--warn); }
 .clock .big2 { font-size: 1.3rem; font-weight: 300; font-variant-numeric: tabular-nums; }
 
-/* ---------- table ---------- */
+/* table */
 .tablewrap { max-height: 30rem; overflow: auto; border: 0; border-radius: 0; }
 table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
 th, td { padding: 0.4rem 0.8rem; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); font-weight: 400; }
@@ -284,7 +288,7 @@ td.res.bad { color: var(--bad); }
 .tnote { font-size: 0.85rem; color: var(--muted); margin: 0.6rem 0 0; }
 .dnull { color: var(--muted); }
 
-/* ---------- compare ---------- */
+/* compare */
 .cmp-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 2.25rem 2.5rem; }
 .cmp-src { grid-column: span 12; }
 .cmp-ctl { grid-column: span 12; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.5rem; }
@@ -336,6 +340,8 @@ th .sw { display: inline-block; vertical-align: middle; }
 </style>
 </head>
 <body>
+<!-- Header: placement badge, run id and CSV path, SSE
+     connection state, theme toggle and the Live / Compare tabs -->
 <header class="top">
   <h1>Telemetry</h1>
   <span id="badge" class="badge" role="status" aria-label="Placement">PLACEMENT ?</span>
@@ -353,7 +359,11 @@ th .sw { display: inline-block; vertical-align: middle; }
 </header>
 
 <main>
-<!-- ================= LIVE ================= -->
+<!-- Live view -->
+<!-- Fed by /history.json on load and the /events SSE stream afterwards.
+     Cards: current input, prediction, accuracy, latency chart with stat
+     tiles, confusion matrix, node health (topics, perception, chrony offset)
+     and the trial history table. Element ids are filled in by the script. -->
 <section id="viewLive" role="tabpanel" aria-labelledby="tabLive">
   <div class="grid">
     <section class="card c-image">
@@ -440,7 +450,10 @@ th .sw { display: inline-block; vertical-align: middle; }
   </div>
 </section>
 
-<!-- ================= COMPARE ================= -->
+<!-- Compare view -->
+<!-- Offline comparison of finished run CSVs: saved runs listed from
+     /runs.json (fetched from /runs/<name>) or files parsed in the browser.
+     Latency views use rows with status "ok" only (see okValues). -->
 <section id="viewCmp" role="tabpanel" aria-labelledby="tabCmp" hidden>
   <div class="cmp-grid">
     <section class="card cmp-src">
@@ -503,9 +516,7 @@ th .sw { display: inline-block; vertical-align: middle; }
 <script>
 'use strict';
 
-/* =====================================================================
-   Helpers
-   ===================================================================== */
+/* Helpers */
 const $ = (id) => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
 
@@ -524,6 +535,9 @@ function tickLabel(v) {
   return String(+v.toFixed(2));
 }
 
+/* Percentile of an ascending array with linear interpolation between the
+   two nearest ranks (same as numpy's default), so p50/p95 on the page match
+   a numpy/pandas analysis of the CSV. */
 function percentile(sorted, p) {
   const n = sorted.length;
   if (!n) return null;
@@ -629,9 +643,7 @@ function swatch(colorVar, dash, shape) {
   return s;
 }
 
-/* =====================================================================
-   State
-   ===================================================================== */
+/* State */
 const LIVE_STALE_MS = 4000;
 const state = {
   runId: null, placement: null, csvFile: null, total: 0,
@@ -646,9 +658,7 @@ const LAT_SERIES = [
 ];
 const ui = { tab: 'live', lat: { e2e: true, compute: true, turn: false }, log: false, hover: null, metric: 'e2e_ms' };
 
-/* =====================================================================
-   Render scheduling (coalesced; only touched parts redraw)
-   ===================================================================== */
+/* Render scheduling (coalesced; only touched parts redraw) */
 const dirty = {};
 let flushPending = false;
 function mark(k) {
@@ -674,9 +684,7 @@ function flush() {
   } catch (e) { console.error('render failed', e); }
 }
 
-/* =====================================================================
-   Theme
-   ===================================================================== */
+/* Theme */
 let themeMode = 'auto';
 function setTheme(mode, persist) {
   themeMode = mode;
@@ -705,14 +713,14 @@ function redrawAll() {
   } catch (e) { /* ignore */ }
 })();
 
-/* =====================================================================
-   Data intake
-   ===================================================================== */
+/* Data intake */
 function resetRun() {
   state.rows = []; state.seqs = new Set(); state.current = null; state.total = 0;
   ui.hover = null;
   lastImgKey = null; lastCurKey = null;
 }
+/* Merge finished rows, de-duplicated by the server's seq: the same row can
+   arrive both in /history.json and on the stream after a reconnect. */
 function addRows(rows) {
   if (!Array.isArray(rows) || !rows.length) return false;
   let added = false, needSort = false;
@@ -729,6 +737,8 @@ function addRows(rows) {
   if (needSort) state.rows.sort((a, b) => a.seq - b.seq);
   return added;
 }
+/* Apply one server update (SSE message or history snapshot). A new run_id
+   means the dashboard was restarted, so the old run's rows are dropped. */
 function applyUpdate(u) {
   if (!u || typeof u !== 'object') return;
   if (u.run_id && state.runId && u.run_id !== state.runId) { resetRun(); mark('rows'); mark('current'); }
@@ -754,6 +764,8 @@ async function fetchHistory() {
   }
 }
 
+/* Open the SSE stream. Each (re)open refetches the history so rows finished
+   while disconnected are not lost; on a closed stream retry every 2 s. */
 let es = null, retryTimer = 0;
 function connect() {
   if (es) { try { es.close(); } catch (e) { /* ignore */ } }
@@ -780,9 +792,7 @@ setInterval(() => {
   if (state.conn === 'live' && state.lastMsg && Date.now() - state.lastMsg > LIVE_STALE_MS) { state.conn = 'stalled'; mark('conn'); }
 }, 1000);
 
-/* =====================================================================
-   Header and connection
-   ===================================================================== */
+/* Header and connection */
 function renderHeader() {
   const b = $('badge');
   const p = state.placement;
@@ -797,9 +807,7 @@ function renderConn() {
   $('connTxt').textContent = state.conn === 'live' ? 'live' : state.conn === 'stalled' ? 'no data' : state.conn === 'retry' ? 'reconnecting' : 'connecting';
 }
 
-/* =====================================================================
-   Current trial: image + prediction
-   ===================================================================== */
+/* Current trial: image + prediction */
 let lastImgKey = null, lastCurKey = null;
 const STATE_TXT = {
   waiting_prediction: '… waiting for prediction',
@@ -882,9 +890,7 @@ function setPrediction(cur) {
   $('curNums').textContent = parts.join('  ·  ');
 }
 
-/* =====================================================================
-   Accuracy, stats, table, confusion
-   ===================================================================== */
+/* Accuracy, stats, table, confusion */
 function renderAccuracy() {
   const rows = state.rows;
   const counted = rows.filter((r) => typeof r.correct === 'boolean');
@@ -1023,9 +1029,7 @@ function renderConfusion() {
   $('cmTotal').textContent = 'Total: ' + total + (total ? ' (' + diag + ' on the diagonal)' : '') + ' · only trials with both true and predicted digit';
 }
 
-/* =====================================================================
-   Node health
-   ===================================================================== */
+/* Node health */
 const TOPICS = ['/sketch_image', '/ground_truth', '/digit_prediction', '/strokes', '/turn_done'];
 const hrefs = {};
 function ensureHealthRow(topic) {
@@ -1050,6 +1054,8 @@ function fmtAge(a) {
   return m + ' min ' + (s < 10 ? '0' : '') + s + ' s';
 }
 function setText(node, t) { if (node.textContent !== t) node.textContent = t; }
+/* Topic rows: ok under 5 s since the last message, slow up to 10 s, stale
+   beyond. The perception verdict comes from the server (perception_health). */
 function renderHealth() {
   const h = state.health || {};
   const topics = TOPICS.slice();
@@ -1102,9 +1108,7 @@ function renderHealth() {
   }
 }
 
-/* =====================================================================
-   Latency chart (live)
-   ===================================================================== */
+/* Latency chart (live) */
 const lat = { layout: null };
 (function buildLatControls() {
   const host = $('latLegend');
@@ -1320,9 +1324,7 @@ function drawLatency() {
   cv.addEventListener('pointerleave', leave);
 })();
 
-/* =====================================================================
-   Compare runs
-   ===================================================================== */
+/* Compare runs */
 const DASHES = [[], [9, 5], [2, 5], [12, 4, 2, 4]];
 const SHAPES = ['circle', 'square', 'triangle', 'cross'];
 const METRICS = [
@@ -1334,6 +1336,8 @@ const METRICS = [
 const cmp = { series: [], runs: [], runsLoaded: false, others: [] };
 function metricName() { return (METRICS.find((m) => m.key === ui.metric) || METRICS[0]).name; }
 
+/* Minimal RFC 4180 CSV reader (quotes, doubled quotes, CRLF, BOM); returns
+   an array of string arrays with blank lines removed. */
 function parseCSV(text) {
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   const recs = [];
@@ -1353,6 +1357,9 @@ function parseCSV(text) {
   if (f !== '' || row.length) { row.push(f); recs.push(row); }
   return recs.filter((r) => !(r.length === 1 && r[0].trim() === ''));
 }
+/* Turn a dashboard run CSV into row objects keyed by column name (column
+   order does not matter, empty cells become null). The run's placement is
+   the most common placement value, else taken from the file name prefix. */
 function csvToRun(text, filename) {
   const recs = parseCSV(text);
   if (recs.length < 1) throw new Error('empty file');
@@ -1398,6 +1405,8 @@ function removeSeries(id) {
   syncRunChecks();
   mark('cmp');
 }
+/* Colour by placement (edge / cloud / other), then vary dash and marker so
+   several runs of the same placement stay distinguishable. */
 function assignStyles() {
   const perPlacement = {};
   cmp.series.forEach((s, gi) => {
@@ -1414,6 +1423,9 @@ function assignStyles() {
     s.label = s.placement + ' · ' + s.name;
   });
 }
+/* Numeric values of `key` from rows with status "ok" (optionally one true
+   digit). Timeouts, superseded and no_strokes rows are left out so partial
+   trials do not skew the latency comparison. */
 function okValues(s, key, digit) {
   const out = [];
   for (const r of s.rows) {
@@ -1424,7 +1436,7 @@ function okValues(s, key, digit) {
   return out;
 }
 
-/* ---- sources UI ---- */
+/* sources UI */
 function syncRunChecks() {
   $('runList').querySelectorAll('input[type=checkbox]').forEach((cb) => {
     cb.checked = cmp.series.some((s) => s.id === 'run:' + cb.dataset.name);
@@ -1528,7 +1540,7 @@ async function handleFiles(files) {
   }
 })();
 
-/* ---- compare rendering ---- */
+/* compare rendering */
 function renderSeriesList() {
   const ul = $('seriesList');
   ul.replaceChildren();
@@ -1751,6 +1763,8 @@ function renderDigitTable() {
   t.appendChild(tb);
   host.appendChild(t);
 }
+/* Cloud-minus-edge p50/p95 sentence, shown only with exactly one edge and
+   one cloud series loaded. */
 function renderDelta() {
   const box = $('cmpDelta');
   const edges = cmp.series.filter((s) => s.placement === 'edge'), clouds = cmp.series.filter((s) => s.placement === 'cloud');
@@ -1777,9 +1791,7 @@ function renderCompare() {
   renderDigitTable();
 }
 
-/* =====================================================================
-   Tabs, resize, boot
-   ===================================================================== */
+/* Tabs, resize, boot */
 function setTab(name) {
   ui.tab = name;
   const live = name === 'live';

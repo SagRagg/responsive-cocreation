@@ -1,3 +1,10 @@
+"""Tests for the offline joint pose table (arm_drawing.joint_poses).
+
+Covers path resampling, the canvas-to-paper mapping, IK accuracy and joint
+limits for every digit, trajectory timing, pen height, stroke counts, and
+that the committed config/digit_poses.json matches what the code generates.
+"""
+
 import json
 
 import numpy as np
@@ -11,6 +18,7 @@ from arm_drawing.templates import STROKE_TEMPLATES
 
 @pytest.fixture(scope='module')
 def table():
+    """Pose table built once for the module (IK for all digits is slow)."""
     return build_pose_table()
 
 
@@ -36,6 +44,8 @@ def test_every_digit_present_and_within_limits(table):
 
 
 def test_trajectories_start_after_zero_and_end_at_ready(table):
+    """The controller needs strictly increasing times with the first point
+    after 0, and each turn must leave the arm where the next one starts."""
     for traj in table['digits'].values():
         assert traj['time'][0] > 0
         assert all(b > a for a, b in zip(traj['time'], traj['time'][1:]))
@@ -43,6 +53,8 @@ def test_trajectories_start_after_zero_and_end_at_ready(table):
 
 
 def test_no_joint_jumps_between_points(table):
+    """No joint moves more than 0.5 rad between consecutive points, i.e. IK
+    never flips to another branch mid-digit."""
     for traj in table['digits'].values():
         steps = np.abs(np.diff(np.array(traj['joints']), axis=0))
         assert steps.max() < 0.5
@@ -59,6 +71,7 @@ def test_pen_down_points_lie_on_paper(table):
 
 
 def test_stroke_count_matches_templates(table):
+    """Each pen-up to pen-down transition starts one template stroke."""
     for d, traj in table['digits'].items():
         down = traj['pen_down']
         starts = sum(1 for a, b in zip(down, down[1:]) if b and not a)
@@ -66,6 +79,8 @@ def test_stroke_count_matches_templates(table):
 
 
 def test_committed_file_is_up_to_date(table):
+    """The node loads the committed JSON, so it must not lag behind changes
+    to the templates or settings."""
     with open(default_path()) as f:
         committed = json.load(f)
     assert committed == json.loads(json.dumps(table)), \

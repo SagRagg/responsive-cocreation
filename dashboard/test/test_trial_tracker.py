@@ -1,3 +1,9 @@
+"""Tests for TrialTracker and perception_health in trial_tracker.py: pairing
+by sketch stamp (not trial number), latency maths at nanosecond precision,
+out-of-order and missing messages, the four statuses (ok, timeout,
+superseded, no_strokes), duplicates, bad JSON, and the `current` view the
+page shows. Times are synthetic epoch ns built from STAMP."""
+
 import json
 
 import pytest
@@ -39,6 +45,7 @@ def tracker():
 
 
 def run_in_order(tracker, stamp=STAMP, true=7, pred=7, trial=1):
+    """Feed one complete trial in the normal order, sketch 2 ms after its stamp."""
     t0 = stamp[0] * NS + stamp[1]
     tracker.on_sketch(stamp, t0 + 2 * MS, b'\x00' * 784, 28, 28)
     tracker.on_ground_truth(truth(trial, 100 + trial, true, stamp), t0 + 3 * MS)
@@ -72,6 +79,7 @@ def test_latency_maths_uses_nanosecond_precision(tracker):
 
 
 def test_publish_stamp_replaces_strokes_arrival_for_compute(tracker):
+    """With publish_stamp, compute ends at publish and network absorbs the rest."""
     publish = T0 + 30 * MS
     tracker.on_sketch(STAMP, T0 + 2 * MS, None)
     tracker.on_strokes(strokes(publish_stamp={'sec': publish // NS,
@@ -152,6 +160,7 @@ def test_timeout_without_any_reply(tracker):
 
 
 def test_next_sketch_closes_the_stalled_trial(tracker):
+    """A new sketch stamp closes the open trial as superseded."""
     tracker.on_sketch(STAMP, T0, None)
     tracker.on_strokes(strokes(), T0 + 40 * MS)          # no /turn_done ever
     run_in_order(tracker, other_stamp(60), trial=2)
@@ -182,6 +191,8 @@ def test_pairing_ignores_trial_numbers(tracker):
 
 
 def test_late_strokes_for_a_closed_trial_are_dropped(tracker):
+    """Strokes after a timeout must not reopen the trial; the keyless
+    /turn_done that follows has nothing in flight and counts as an orphan."""
     tracker.on_sketch(STAMP, T0, None)
     tracker.tick(T0 + 31 * NS)
     tracker.on_strokes(strokes(), T0 + 32 * NS)

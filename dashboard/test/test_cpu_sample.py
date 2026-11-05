@@ -1,3 +1,7 @@
+"""Tests for cpu_sample.py: /proc stat parsing, process matching by script
+name, and the CPU/memory summary. A fake /proc tree is used, so they run on
+any OS."""
+
 from cpu_sample import (find_processes, format_summary, parse_stat,
                         read_stat, script_name, summarise)
 
@@ -8,6 +12,7 @@ STAT = ('7 (py (x) thon) S 1 7 7 0 -1 4194560 100 0 0 0 150 50 0 0 20 0 3 0 '
 
 
 def fake_proc(tmp_path, entries):
+    """Build a fake /proc tree with cmdline and stat files for each pid."""
     for pid, cmdline in entries.items():
         d = tmp_path / str(pid)
         d.mkdir()
@@ -26,6 +31,8 @@ def test_read_stat_missing_process_is_none(tmp_path):
 
 
 def test_script_name_matches_the_script_not_a_wrapper():
+    """Only the interpreter/script tokens count: a `bash -c` wrapper or the
+    sampler's own --match argument must not be sampled as the node."""
     names = {'telemetry_dashboard.py'}
     assert script_name(['python3', '/home/x/dashboard/telemetry_dashboard.py',
                         '--ros-args'], names) == 'telemetry_dashboard.py'

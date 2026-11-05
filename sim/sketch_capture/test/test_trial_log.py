@@ -1,3 +1,5 @@
+"""Tests for the sketch_capture trial CSV (sketch_capture.trial_log)."""
+
 import csv
 
 from sketch_capture.trial_log import COLUMNS, TrialLog
@@ -16,6 +18,7 @@ def test_rows_and_parent_dir(tmp_path):
 
 
 def test_rows_flushed_before_close(tmp_path):
+    """Rows reach disk immediately, so a run that is killed keeps its log."""
     path = tmp_path / 'trials.csv'
     log = TrialLog(str(path))
     log.write(1, 0, 7, 1, 2)

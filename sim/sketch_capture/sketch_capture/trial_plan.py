@@ -13,6 +13,8 @@ def build_trial_plan(labels, per_digit=10, seed=42):
     sequence, so edge and cloud runs see identical inputs.
     """
     labels = np.asarray(labels)
+    # One generator for both steps, so the selection and the order both
+    # depend on the seed alone.
     rng = np.random.default_rng(seed)
     chosen = []
     for digit in range(NUM_CLASSES):

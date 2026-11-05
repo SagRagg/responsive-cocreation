@@ -9,6 +9,7 @@ import numpy as np
 IMAGES_STEM = 't10k-images-idx3-ubyte'
 LABELS_STEM = 't10k-labels-idx1-ubyte'
 
+# IDX header magic numbers: 0x0803 (uint8, 3 dims) and 0x0801 (uint8, 1 dim).
 _IMAGES_MAGIC = 2051
 _LABELS_MAGIC = 2049
 
@@ -25,6 +26,7 @@ def _find_file(dataset_dir, stem):
 
 
 def _read_bytes(path):
+    """Whole file contents, gunzipped if the name ends in .gz."""
     opener = gzip.open if path.endswith('.gz') else open
     with opener(path, 'rb') as f:
         return f.read()

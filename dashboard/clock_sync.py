@@ -1,4 +1,10 @@
-"""Clock offset from `chronyc tracking`, polled in a background thread."""
+"""Clock offset from `chronyc tracking`, polled in a background thread.
+
+The value is this machine's offset from its own NTP source, not the offset
+between the capture machine and this one. It is shown on the page as a sanity
+check: end-to-end, network and turn times subtract a stamp taken on another
+machine, so they are only as accurate as both machines' sync.
+"""
 
 import re
 import subprocess
@@ -28,6 +34,7 @@ def parse_tracking(text):
 
 
 def _query():
+    """Run `chronyc tracking` once; a status dict, never an exception."""
     try:
         out = subprocess.run(['chronyc', 'tracking'], capture_output=True,
                              text=True, timeout=2)
@@ -54,12 +61,15 @@ class ClockSyncPoller:
         self._thread = threading.Thread(target=self._run, daemon=True)
 
     def start(self):
+        """Start polling in a daemon thread (the first poll runs at once)."""
         self._thread.start()
 
     def stop(self):
+        """Ask the thread to stop; it exits at its next wake-up."""
         self._stop.set()
 
     def status(self):
+        """Copy of the latest result: available, offset_ms, stratum, error."""
         return dict(self._status)
 
     def _run(self):

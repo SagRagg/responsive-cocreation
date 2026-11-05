@@ -1,3 +1,8 @@
+"""Tests for reading MNIST IDX files (sketch_capture.mnist_loader), using
+small synthetic files: plain and gzipped round trips, missing files, bad
+magic numbers and truncated data.
+"""
+
 import gzip
 import struct
 
@@ -9,6 +14,7 @@ from sketch_capture.mnist_loader import (
 
 
 def _write_idx(tmp_path, images, labels, gz=False):
+    """Write images and labels as MNIST test IDX files into tmp_path."""
     n = len(images)
     img = struct.pack('>IIII', 2051, n, 28, 28) + images.tobytes()
     lab = struct.pack('>II', 2049, n) + labels.tobytes()

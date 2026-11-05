@@ -1,3 +1,7 @@
+"""Tests for rendering MNIST digits into the published image
+(sketch_capture.canvas): both formats, polarity, upscaling and shape checks.
+"""
+
 import numpy as np
 import pytest
 
@@ -23,6 +27,7 @@ def test_polarity_black_ink_on_white():
 
 
 def test_upscale_blocks():
+    """MNIST rows 5-9, cols 3-5 become canvas rows 50-99, cols 30-59."""
     out = render_canvas(_digit())
     assert (out[50:100, 30:60] == 0).all()
     assert (out[100:110, 30:60] == 255).all()

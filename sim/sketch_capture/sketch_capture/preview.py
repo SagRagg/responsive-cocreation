@@ -27,6 +27,7 @@ def to_ascii(image):
 
 
 def _chunk(kind, data):
+    """One PNG chunk: length, type, data and CRC-32 of type + data."""
     body = kind + data
     return struct.pack('>I', len(data)) + body + struct.pack('>I', zlib.crc32(body))
 
@@ -35,9 +36,13 @@ def write_png(path, image):
     """Write a 2-D uint8 array as an 8-bit grayscale PNG."""
     image = np.asarray(image, dtype=np.uint8)
     height, width = image.shape
+    # Each scanline starts with filter byte 0 (none); written by hand so the
+    # node needs no imaging library.
     rows = b''.join(b'\x00' + image[y].tobytes() for y in range(height))
     with open(path, 'wb') as f:
         f.write(b'\x89PNG\r\n\x1a\n')
+        # Bit depth 8, colour type 0 (grayscale), default compression,
+        # filter and no interlace.
         f.write(_chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 0, 0, 0, 0)))
         f.write(_chunk(b'IDAT', zlib.compress(rows)))
         f.write(_chunk(b'IEND', b''))

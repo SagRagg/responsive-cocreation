@@ -86,10 +86,17 @@ def cartesian_path(strokes, cfg):
 
 
 def ready_position(cfg):
+    """Tool-tip position of the ready pose: `ready_height` above the paper
+    centre, in base_link (m)."""
     return canvas_to_base(0.5, 0.5, cfg, cfg['ready_height'])
 
 
 def solve_ready(cfg):
+    """Joint angles of the ready pose, pen pointing straight down.
+
+    Raises:
+        RuntimeError: If IK finds no solution from HOME.
+    """
     q = solve_ik(ready_position(cfg), PEN_DOWN, HOME, cfg['tool_length'])
     if q is None:
         raise RuntimeError('no IK solution for the ready pose')
@@ -97,6 +104,8 @@ def solve_ready(cfg):
 
 
 def _segment_time(q0, q1, p0, p1, speed, cfg):
+    """Duration (s) of one segment: the Cartesian time at `speed`, or longer
+    if any joint would exceed `max_joint_speed_ratio` of its limit."""
     t = np.linalg.norm(p1 - p0) / speed
     for a, b, limit in zip(q0, q1, JOINT_SPEED_LIMITS):
         t = max(t, abs(b - a) / (limit * cfg['max_joint_speed_ratio']))
@@ -109,13 +118,19 @@ def digit_trajectory(digit, cfg, ready_q):
     times, joints, xyz, pen = [], [], [], []
     q_prev, p_prev, t = ready_q, ready_p, 0.0
     for i, (p, down) in enumerate(cartesian_path(STROKE_TEMPLATES[digit], cfg)):
+        # Seeding IK with the previous solution keeps consecutive poses on
+        # the same branch, so the redundant joints do not jump.
         q = solve_ik(p, PEN_DOWN, q_prev, cfg['tool_length'])
         if q is None:
             raise RuntimeError(f'digit {digit}: no IK solution at {p}')
         if i == 0:
+            # First move leaves the ready pose: at least ready_move_time so it
+            # stays gentle even though the distance is short.
             t += max(cfg['ready_move_time'],
                      _segment_time(q_prev, q, p_prev, p, cfg['travel_speed'], cfg))
         else:
+            # Draw speed only between two pen-down points; lifts, lowers and
+            # pen-up travel use the faster travel speed.
             speed = cfg['draw_speed'] if down and pen[-1] else cfg['travel_speed']
             t += _segment_time(q_prev, q, p_prev, p, speed, cfg)
         times.append(t)
@@ -129,6 +144,7 @@ def digit_trajectory(digit, cfg, ready_q):
     joints.append(ready_q)
     xyz.append(ready_p)
     pen.append(False)
+    # Rounded so the committed JSON is compact and stable between runs.
     return {
         'time': [round(x, 4) for x in times],
         'joints': [[round(float(a), 6) for a in q] for q in joints],
@@ -138,6 +154,16 @@ def digit_trajectory(digit, cfg, ready_q):
 
 
 def build_pose_table(cfg=None):
+    """Build the full table the drawing node loads.
+
+    Args:
+        cfg: Overrides for DEFAULTS, or None.
+
+    Returns:
+        Dict with 'settings', 'joint_names', 'ready' (joint angles) and
+        'digits' ('0'-'9' -> digit_trajectory() output). Digit keys are
+        strings because the table is stored as JSON.
+    """
     cfg = dict(DEFAULTS, **(cfg or {}))
     ready_q = solve_ready(cfg)
     return {
@@ -151,7 +177,11 @@ def build_pose_table(cfg=None):
 
 def check_pose_table(table, tol=1e-3):
     """Largest tool-tip error (m) of the stored joints; raises if over `tol`
-    or if any joint is outside its limits."""
+    or if any joint is outside its limits.
+
+    Recomputes forward kinematics from the rounded joint angles, so it also
+    checks that rounding did not move the pen.
+    """
     tool = table['settings']['tool_length']
     worst = 0.0
     for digit, traj in table['digits'].items():
@@ -167,11 +197,13 @@ def check_pose_table(table, tol=1e-3):
 
 
 def default_path():
+    """config/digit_poses.json in the package source tree."""
     return os.path.join(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))), 'config', 'digit_poses.json')
 
 
 def main(args=None):
+    """Command-line entry point: build, check and write the pose table."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('-o', '--output', default=default_path(),
                         help='where to write the JSON (default: %(default)s)')

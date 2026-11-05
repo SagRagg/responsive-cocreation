@@ -1,6 +1,14 @@
 """HTTP side of the dashboard: the page, a history snapshot, saved runs and an
 SSE stream. Standard library only; it never touches ROS, so it runs in its own
-thread beside the spin loop."""
+thread beside the spin loop.
+
+Routes (GET only):
+  /, /index.html   static/index.html
+  /history.json    get_history(): all rows of the current run
+  /runs.json       list_runs(csv_dir): saved run CSVs
+  /runs/<name>     one saved CSV; the name must match _RUN_NAME, so no paths
+  /events          Server-Sent Events, one `data:` line per update
+"""
 
 import json
 import os
@@ -22,6 +30,7 @@ class Hub:
         self.latest = None
 
     def publish(self, text):
+        """Store `text` as the latest update and queue it for every client."""
         with self._lock:
             self.latest = text
             for q in self._clients:
@@ -33,6 +42,7 @@ class Hub:
                 q.put_nowait(text)
 
     def subscribe(self):
+        """New client queue, primed with the latest update so the page fills at once."""
         q = queue.Queue(maxsize=_CLIENT_QUEUE)
         with self._lock:
             if self.latest is not None:
@@ -41,16 +51,24 @@ class Hub:
         return q
 
     def unsubscribe(self, q):
+        """Forget a client queue (its connection closed)."""
         with self._lock:
             self._clients.discard(q)
 
     def client_count(self):
+        """Number of connected SSE clients."""
         with self._lock:
             return len(self._clients)
 
 
 def list_runs(csv_dir):
-    """Saved run CSVs in `csv_dir`, newest first, for /runs.json."""
+    """Saved run CSVs in `csv_dir`, newest first, for /runs.json.
+
+    Only files whose header starts with `placement,trial` count, so the CPU
+    sample CSVs in the same folder are skipped. Each entry has name,
+    placement (from the first row, else the file name prefix), rows (data
+    rows), size (bytes) and mtime (epoch seconds).
+    """
     runs = []
     try:
         names = os.listdir(csv_dir)
@@ -81,6 +99,8 @@ def make_server(bind, port, static_dir, hub, get_history, csv_dir):
     csv_dir = os.path.abspath(os.path.expanduser(csv_dir))
 
     class Handler(BaseHTTPRequestHandler):
+        """Request handler bound to this server's static dir, hub and csv_dir."""
+
         def log_message(self, *args):
             pass                              # keep the Pi's CPU and terminal quiet
 
@@ -129,6 +149,11 @@ def make_server(bind, port, static_dir, hub, get_history, csv_dir):
             self._send(200, body, 'text/csv; charset=utf-8')
 
         def _stream(self):
+            """Hold the connection open and write each hub update as an SSE event.
+
+            A comment line goes out after 15 s of silence so idle connections
+            are kept alive and a closed browser is noticed by the failed write.
+            """
             self.send_response(200)
             self.send_header('Content-Type', 'text/event-stream')
             self.send_header('Cache-Control', 'no-cache')

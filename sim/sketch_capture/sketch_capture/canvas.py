@@ -2,6 +2,7 @@
 
 import numpy as np
 
+# 10x nearest-neighbour upscale: 28 px -> 280 px, a paper-sized canvas.
 SCALE = 10
 MNIST_SIZE = 28
 CANVAS_SIZE = MNIST_SIZE * SCALE
@@ -12,6 +13,7 @@ IMAGE_FORMATS = ('mnist', 'canvas')
 
 
 def _check_digit(digit):
+    """Return `digit` as uint8, raising ValueError unless it is 28x28."""
     digit = np.asarray(digit, dtype=np.uint8)
     if digit.shape != (MNIST_SIZE, MNIST_SIZE):
         raise ValueError(f'expected a 28x28 image, got {digit.shape}')

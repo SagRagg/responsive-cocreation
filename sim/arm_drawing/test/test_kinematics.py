@@ -1,3 +1,10 @@
+"""Tests for Gen3 forward and inverse kinematics (arm_drawing.kinematics).
+
+Forward kinematics is checked against the URDF's zero pose and Kinova's
+published Home pose; IK against a reachable pen-down target and an
+unreachable one.
+"""
+
 import numpy as np
 
 from arm_drawing.kinematics import HOME, forward, solve_ik, within_limits

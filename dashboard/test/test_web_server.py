@@ -1,3 +1,7 @@
+"""Tests for web_server.py (page, /history.json, /runs.json, /runs/<name>,
+SSE /events, path traversal returning 404, the Hub queue) and for
+clock_sync.parse_tracking. Uses a real HTTP server on localhost."""
+
 import json
 import threading
 import urllib.error
@@ -14,6 +18,8 @@ HEADER = ','.join(CSV_COLUMNS) + '\n'
 
 @pytest.fixture
 def served(tmp_path):
+    """Real server on a free port over a temp static dir and log dir that
+    holds one run CSV, one non-run CSV and a file outside the log dir."""
     static = tmp_path / 'static'
     static.mkdir()
     (static / 'index.html').write_text('<title>dash</title>')
@@ -79,6 +85,7 @@ def test_event_stream_sends_latest_then_new_updates(served):
 
 
 def test_hub_drops_oldest_for_a_slow_client():
+    """A client that never reads keeps at most the queue size, newest last."""
     hub = Hub()
     q = hub.subscribe()
     for n in range(100):

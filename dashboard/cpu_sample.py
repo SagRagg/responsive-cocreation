@@ -4,6 +4,14 @@
 Reads /proc (Linux) with the standard library only, every few seconds, so the
 sampler itself costs next to nothing. CPU is a percentage of one core.
 
+Output CSV columns (one row per watched process per sample):
+  time_s   wall-clock epoch seconds of the sample
+  name     the matched script file name
+  pid      process id
+  cpu_pct  CPU time used since the previous sample, % of one core
+           (so 4 busy cores on a Pi 5 can show up to 400)
+  rss_mb   resident memory in MB (10^6 bytes)
+
   cpu_sample.py --out run.csv --match mnist_perception_node.py --match telemetry_dashboard.py
   cpu_sample.py --summary run.csv
 """
@@ -62,9 +70,11 @@ def read_stat(pid, proc='/proc'):
 
 
 def parse_stat(text):
+    """(utime + stime ticks, rss pages) from the text of /proc/<pid>/stat."""
     # The command name sits in brackets and may itself contain spaces or
     # brackets, so split after the last closing bracket.
     fields = text[text.rindex(')') + 2:].split()
+    # Index 0 here is field 3 (state) of proc(5): utime=14, stime=15, rss=24.
     utime, stime, rss_pages = int(fields[11]), int(fields[12]), int(fields[21])
     return utime + stime, rss_pages
 
@@ -81,6 +91,8 @@ def summarise(rows):
         out[name] = {
             'samples': len(cpu),
             'cpu_mean': sum(cpu) / len(cpu),
+            # Nearest-rank style p95 (no interpolation), unlike the page's
+            # latency percentiles; fine for a coarse CPU summary.
             'cpu_p95': cpu[min(len(cpu) - 1, int(0.95 * len(cpu)))],
             'cpu_max': cpu[-1],
             'rss_max_mb': max(r for _, r in samples),
@@ -89,6 +101,7 @@ def summarise(rows):
 
 
 def format_summary(stats, cores):
+    """Plain-text table of `summarise` output, one line per process."""
     lines = [f'CPU as % of one core ({cores} cores on this machine)',
              f'{"process":<28}{"samples":>8}{"mean":>8}{"p95":>8}{"max":>8}{"rss MB":>9}']
     for name in sorted(stats):
@@ -99,11 +112,17 @@ def format_summary(stats, cores):
 
 
 def read_rows(path):
+    """Rows of a sample CSV as dicts."""
     with open(path, newline='') as f:
         return list(csv.DictReader(f))
 
 
 def sample(names, out_path, every_s, proc='/proc'):
+    """Append one row per watched process to `out_path` every `every_s` s.
+
+    Runs until SIGINT, SIGTERM or SIGHUP (tmux closing the window). Processes
+    are looked up again on every pass, so a restarted node is picked up.
+    """
     ticks_per_s = os.sysconf('SC_CLK_TCK')
     page_mb = os.sysconf('SC_PAGE_SIZE') / 1e6
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
@@ -125,6 +144,10 @@ def sample(names, out_path, every_s, proc='/proc'):
                 if stat is None:
                     continue
                 ticks, pages = stat
+                # CPU% needs two readings: a pid's first pass only primes
+                # `previous`, so a new process shows up one interval later.
+                # Monotonic time for the interval, so a clock step from
+                # chrony cannot distort it.
                 if pid in previous:
                     last_ticks, last_t = previous[pid]
                     cpu = 100.0 * (ticks - last_ticks) / ticks_per_s / (now - last_t)
@@ -136,6 +159,7 @@ def sample(names, out_path, every_s, proc='/proc'):
 
 
 def main():
+    """Command line: sample with --out/--match, or print --summary of a CSV."""
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--out', help='CSV to write samples to')
     parser.add_argument('--match', action='append', default=[],

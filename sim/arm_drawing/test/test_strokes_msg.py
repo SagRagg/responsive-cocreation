@@ -1,3 +1,7 @@
+"""Tests for decoding /strokes (arm_drawing.strokes_msg) and the template
+comparison the drawing node uses to warn about mismatches.
+"""
+
 import json
 
 import pytest
@@ -7,6 +11,7 @@ from arm_drawing.templates import STROKE_TEMPLATES, matches_template
 
 
 def payload(**overrides):
+    """A valid /strokes JSON string for a 7, with fields replaced."""
     data = {'trial': 3, 'digit': 7, 'confidence': 0.99,
             'source_stamp': {'sec': 1761540000, 'nanosec': 5},
             'frame_id': 'canvas', 'strokes': STROKE_TEMPLATES[7]}
@@ -25,6 +30,8 @@ def test_parse_valid_payload():
     'not json', payload(digit=12), json.dumps({'trial': 1}),
 ])
 def test_parse_rejects_bad_payloads(text):
+    """Non-JSON, an out-of-range digit and missing fields all raise
+    ValueError, which the node turns into a 'bad_message' turn."""
     with pytest.raises(ValueError):
         parse_strokes(text)
 

@@ -31,6 +31,7 @@ HOME = np.radians([0.0, 15.0, 180.0, -130.0, 0.0, 55.0, 90.0])
 
 
 def _origin(xyz, rpy):
+    """4x4 transform of a URDF <origin> (fixed-axis roll, pitch, yaw)."""
     r, p, y = rpy
     cr, sr, cp, sp, cy, sy = (np.cos(r), np.sin(r), np.cos(p),
                               np.sin(p), np.cos(y), np.sin(y))
@@ -45,6 +46,7 @@ def _origin(xyz, rpy):
 
 
 def _rot_z(q):
+    """4x4 rotation by `q` rad about z (a revolute joint's motion)."""
     c, s = np.cos(q), np.sin(q)
     t = np.eye(4)
     t[:2, :2] = [[c, -s], [s, c]]
@@ -56,6 +58,7 @@ _EE = _origin(*_EE_ORIGIN)
 
 
 def _tool(tool_length):
+    """4x4 offset of `tool_length` m along z (end effector to pen tip)."""
     t = np.eye(4)
     t[2, 3] = tool_length
     return t
@@ -91,6 +94,7 @@ def _jacobian(q, tool_length):
 
 
 def within_limits(q):
+    """True if every joint angle in `q` is inside JOINT_LIMITS."""
     return all(lim is None or lim[0] <= a <= lim[1]
                for a, lim in zip(q, JOINT_LIMITS))
 
@@ -110,12 +114,16 @@ def solve_ik(position, z_axis, seed, tool_length=0.0,
     for _ in range(max_iter):
         pose = forward(q, tool_length)
         err_p = target_p - pose[:3, 3]
+        # Small-angle orientation error between the current and target z
+        # axes; zero when they align, whatever the roll about z.
         err_r = np.cross(pose[:3, 2], target_z)
         err = np.concatenate([err_p, err_r])
         if np.linalg.norm(err) < tol:
             if within_limits(q):
                 return q
             return None
+        # Damped least squares step: stays bounded near singularities,
+        # where a plain pseudo-inverse would blow up.
         jac = _jacobian(q, tool_length)
         step = jac.T @ np.linalg.solve(
             jac @ jac.T + damping ** 2 * np.eye(6), err)

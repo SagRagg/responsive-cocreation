@@ -36,6 +36,14 @@ ok "workspace found"
 tmux has-session -t "$SESSION" 2>/dev/null && { tmux kill-session -t "$SESSION"; echo "note:  replaced the old '$SESSION' session"; }
 env_cmd="source $(printf %q "$ROS_SETUP") && source $(printf %q "$WS/install/setup.bash") && export ROS_DOMAIN_ID=$DOMAIN"
 
+# Discovery settings typed into the tmux windows too: tmux may be running
+# with an older environment than this shell (matters for ROS_STATIC_PEERS).
+for var in ROS_STATIC_PEERS ROS_AUTOMATIC_DISCOVERY_RANGE ROS_LOCALHOST_ONLY RMW_IMPLEMENTATION; do
+    if [[ -n ${!var:-} ]]; then
+        env_cmd+=" && export $var=$(printf %q "${!var}")"
+    fi
+done
+
 tmux new-session -d -s "$SESSION" -n arm
 tmux send-keys -t "$SESSION:arm" "$env_cmd && ros2 launch kortex_bringup gen3.launch.py robot_ip:=192.168.1.10 use_fake_hardware:=true dof:=7 launch_rviz:=$RVIZ" Enter
 

@@ -16,13 +16,21 @@ what they need first, and stop with a clear message if something is missing.
 
 ## A run
 
-Update the code on each machine first (`git pull` on the `simulation` branch;
-on the Pi that is the worktree `~/rc-simulation`).
+Run the scripts from the repo root of a checkout that is on the `simulation`
+branch, after a `git pull`. That folder differs per machine:
+
+| Machine | `simulation` checkout |
+|---|---|
+| Pi | `~/rc-simulation` (a git worktree, because `~/responsive-cocreation` stays on `main` for the perception node) |
+| VirtualBox VM | `~/responsive-cocreation` |
+| Cloud VM | wherever you cloned the repo, on `simulation` |
+
+`cd` into it first; the commands below are relative to it.
 
 1. Pi (or cloud VM):
 
    ```bash
-   ~/rc-simulation/scripts/perception_side.sh edge
+   scripts/perception_side.sh edge
    ```
 
    On the cloud VM use `cloud`: the dashboard then binds to the VM's Tailscale
@@ -31,13 +39,13 @@ on the Pi that is the worktree `~/rc-simulation`).
 2. VM:
 
    ```bash
-   ~/responsive-cocreation/scripts/sim_side.sh
+   scripts/sim_side.sh
    ```
 
 3. VM, after step 2 says the arm is ready:
 
    ```bash
-   ~/responsive-cocreation/scripts/capture.sh edge_01
+   scripts/capture.sh edge_01
    ```
 
    Use the same seed for the edge and the cloud run so both see the same
@@ -46,10 +54,29 @@ on the Pi that is the worktree `~/rc-simulation`).
 4. Pi (or cloud VM), when capture has finished:
 
    ```bash
-   ~/rc-simulation/scripts/perception_side.sh stop
+   scripts/perception_side.sh stop
    ```
 
    This stops everything and prints the CPU summary of the run.
+
+## Warm-up first, then the real run
+
+The first inference after perception starts is slow (TensorFlow warm-up): in
+the dry runs it showed up as a single trial around 1.1 s on the cloud and
+about 180 ms on the Pi, which becomes the p95 of a 10-trial run. So do not
+count it. Run a dry run first, then start a fresh dashboard run with
+perception still warm:
+
+```bash
+scripts/capture.sh dry_01 1                 # VM: 10-trial dry run, warms perception up
+scripts/perception_side.sh new-run edge     # Pi/cloud: new dashboard CSV, perception left running
+scripts/capture.sh edge_01                  # VM: the real 30 trials
+```
+
+`capture.sh` also waits (up to 45 s) until perception, the arm and the
+dashboard are all matched before it publishes trial 1. Over the VPN the
+dashboard can be matched seconds after perception, and a sketch published
+before that never reaches it (the row then has no ground truth).
 
 Start order matters: capture publishes as soon as anything listens on
 `/sketch_image`, so perception (and the arm) must be up first. `capture.sh`

@@ -8,7 +8,9 @@
 #   scripts/capture.sh dry_01 1         10-trial dry run
 #
 # Use the same seed for the edge and the cloud run so both see the same digits.
-# The trial log goes to ~/runs/<run-name>.csv. FORCE=1 skips the checks.
+# The trial log goes to ~/runs/<run-name>.csv. Before starting it waits up to
+# 45 s (WAIT=) for perception, the arm and the dashboard to be matched.
+# NO_DASHBOARD=1 runs without the dashboard, FORCE=1 skips the checks.
 
 set -eo pipefail
 
@@ -35,26 +37,34 @@ count() {   # topic "Publisher|Subscription"
     ros2 topic info "$1" 2>/dev/null | awk -v k="$2" '$0 ~ k " count" {print $3}' || true
 }
 
+# Discovery across the VPN is gradual: the dashboard can be matched seconds
+# after perception. Capture publishes trial 1 as soon as anything listens, so
+# wait until everything is matched, or trial 1 reaches perception but not the
+# dashboard (no ground truth, no compute time for that row).
 if [[ ${FORCE:-} != 1 ]]; then
-    problems=0
-    check() {   # description actual minimum
-        if [[ ${2:-0} -ge $3 ]]; then
-            echo "ok:    $1 ($2)"
+    want_dashboard=1
+    [[ ${NO_DASHBOARD:-} == 1 ]] && want_dashboard=0
+    deadline=$((SECONDS + ${WAIT:-45}))
+    while :; do
+        missing=()
+        [[ $(count /strokes Publisher) -ge 1 ]]        || missing+=("perception is not publishing /strokes")
+        [[ $(count /strokes Subscription) -ge 1 ]]       || missing+=("arm_drawing is not listening on /strokes")
+        [[ $(count /turn_done Publisher) -ge 1 ]]        || missing+=("arm_drawing is not publishing /turn_done")
+        if [[ $want_dashboard == 1 ]]; then
+            [[ $(count /sketch_image Subscription) -ge 2 ]] || missing+=("perception and the dashboard are not both listening on /sketch_image")
+            [[ $(count /ground_truth Subscription) -ge 1 ]] || missing+=("the dashboard is not listening on /ground_truth")
         else
-            echo "FAIL:  $1 (found ${2:-0}, need $3)"; problems=1
+            [[ $(count /sketch_image Subscription) -ge 1 ]] || missing+=("perception is not listening on /sketch_image")
         fi
-    }
-    check "perception publishes /strokes"          "$(count /strokes Publisher)"           1
-    check "arm_drawing listens on /strokes"        "$(count /strokes Subscription)"        1
-    check "arm_drawing publishes /turn_done"       "$(count /turn_done Publisher)"         1
-    check "perception listens on /sketch_image"    "$(count /sketch_image Subscription)"   1
-    sketch_subs=$(count /sketch_image Subscription)
-    if [[ ${sketch_subs:-0} -lt 2 ]]; then
-        echo "warn:  the dashboard is not listening on /sketch_image, so no CSV will be recorded"
-    fi
-    if [[ $problems == 1 ]]; then
-        die "the other side is not ready. Start scripts/perception_side.sh on the Pi/cloud and scripts/sim_side.sh here, or use FORCE=1"
-    fi
+        [[ ${#missing[@]} -eq 0 ]] && break
+        if ((SECONDS >= deadline)); then
+            printf 'FAIL:  %s\n' "${missing[@]}"
+            die "the other side is not ready. Start scripts/perception_side.sh on the Pi/cloud and scripts/sim_side.sh here (NO_DASHBOARD=1 runs without the dashboard, FORCE=1 skips all checks)"
+        fi
+        printf 'wait:  %s\n' "${missing[0]}"
+        sleep 3
+    done
+    echo "ok:    everything required is matched"
 fi
 
 mkdir -p "$HOME/runs"
