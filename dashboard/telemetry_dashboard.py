@@ -3,6 +3,12 @@
 
 Run it on the machine that runs the perception node. It only subscribes; it
 never publishes and never changes anything the other nodes use.
+
+    python3 dashboard/telemetry_dashboard.py --ros-args -p placement:=edge
+
+Each finished trial becomes one row of `<csv_dir>/<placement>_<date>-<time>.csv`
+(columns in `trial_tracker.CSV_COLUMNS`). The page on `http://<bind>:<port>`
+gets the same rows plus node health and the chrony offset over SSE.
 """
 
 import json
@@ -26,11 +32,24 @@ MAX_IMAGE_BYTES = 28 * 28  # the perception node only takes 28x28 sketches
 
 
 def _qos(depth):
+    """Reliable, keep-last QoS profile with the given history depth."""
     return QoSProfile(reliability=QoSReliabilityPolicy.RELIABLE,
                       history=QoSHistoryPolicy.KEEP_LAST, depth=depth)
 
 
 class TelemetryDashboard(Node):
+    """ROS node that times each trial, logs it to CSV and feeds the web page.
+
+    Parameters: `placement` ('edge' or 'cloud', default 'edge'), `port`
+    (8080), `bind` ('0.0.0.0'), `csv_dir` ('~/dashboard_logs') and
+    `trial_timeout_s` (30.0).
+
+    Subscribes to /sketch_image (sensor_msgs/Image), /ground_truth and
+    /strokes (std_msgs/String, JSON), /digit_prediction (std_msgs/Int32) and
+    /turn_done (std_msgs/Bool). Starts the HTTP server and the chrony poller
+    in background threads, and pushes an update to the page every UI_PERIOD_S.
+    """
+
     def __init__(self):
         super().__init__('telemetry_dashboard')
         self.declare_parameter('placement', 'edge')
@@ -74,9 +93,12 @@ class TelemetryDashboard(Node):
             f'{self.placement} dashboard on http://{bind}:{port}, '
             f'logging to {self.csv.dir}/{self.run_id}.csv')
 
-    # ---- subscriptions: stamp the arrival first, then do the work ----------
-
+    # Subscriptions: stamp the arrival first, then do the work
     def _seen(self, topic):
+        """Record and return the receive time of `topic` in epoch ns."""
+        # Wall clock on purpose: the sketch header stamp is capture's system
+        # time, so receive minus stamp is only meaningful on the same time
+        # base (and only as good as chrony between the two machines).
         now_ns = time.time_ns()
         self.last_seen_ns[topic] = now_ns
         return now_ns
@@ -87,6 +109,7 @@ class TelemetryDashboard(Node):
         if (msg.encoding == 'mono8' and msg.width * msg.height <= MAX_IMAGE_BYTES
                 and msg.step >= msg.width):
             data = bytes(msg.data)
+            # Rows may be padded to `step` bytes; keep only `width` per row.
             image = b''.join(data[r * msg.step:r * msg.step + msg.width]
                              for r in range(msg.height))
         self.tracker.on_sketch(
@@ -108,6 +131,11 @@ class TelemetryDashboard(Node):
             self.tracker.on_turn_done(now_ns)
 
     def _on_finish(self, row):
+        """Tracker callback: append the finished row to the CSV and log it.
+
+        A failed write is reported once and the node keeps running, so the
+        page still works when the log directory is not writable.
+        """
         try:
             self.csv.write(row)
         except OSError as exc:
@@ -120,9 +148,13 @@ class TelemetryDashboard(Node):
             f"e2e={row['e2e_ms']} ms compute={row['compute_ms']} ms "
             f"turn={row['turn_ms']} ms [{row['status']}]")
 
-    # ---- browser updates ---------------------------------------------------
-
+    # Browser updates
     def _health(self, now_ns):
+        """{topic: {'age_s', 'publishers'}} for every topic in TOPICS.
+
+        `age_s` is seconds since the last message (None if never seen);
+        `publishers` is the graph's publisher count, None if the query fails.
+        """
         health = {}
         for topic in TOPICS:
             seen = self.last_seen_ns[topic]
@@ -136,6 +168,11 @@ class TelemetryDashboard(Node):
         return health
 
     def _publish_update(self):
+        """Timer callback (5 Hz): close timed-out trials, push one SSE update.
+
+        Only rows finished since the last update are sent; the page keeps
+        the rest and de-duplicates by `seq`.
+        """
         now_ns = time.time_ns()
         self.tracker.tick(now_ns)
         health = self._health(now_ns)
@@ -159,6 +196,7 @@ class TelemetryDashboard(Node):
         self.hub.publish(json.dumps(update))
 
     def _history(self):
+        """Snapshot for /history.json: every row of this run plus the current trial."""
         now_ns = time.time_ns()
         return {
             'placement': self.placement,
@@ -170,6 +208,7 @@ class TelemetryDashboard(Node):
         }
 
     def close(self):
+        """Stop the chrony poller and the HTTP server, and close the CSV."""
         self.clock.stop()
         self.server.shutdown()
         self.server.server_close()
@@ -177,6 +216,7 @@ class TelemetryDashboard(Node):
 
 
 def main(args=None):
+    """Spin the dashboard node until Ctrl-C, then shut down cleanly."""
     rclpy.init(args=args)
     node = TelemetryDashboard()
     try:

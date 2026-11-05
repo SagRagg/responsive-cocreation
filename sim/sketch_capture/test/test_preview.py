@@ -1,3 +1,7 @@
+"""Tests for the image previews (sketch_capture.preview): the ASCII picture
+and the hand-written PNG encoder, for both image formats.
+"""
+
 import struct
 import zlib
 
@@ -23,6 +27,8 @@ def test_ascii_shape_and_ink():
 
 
 def test_png_roundtrip(tmp_path):
+    """Decode the PNG by hand (fixed chunk offsets for a single IDAT) and
+    compare every pixel with the source image."""
     canvas = _canvas()
     path = tmp_path / 'a.png'
     write_png(str(path), canvas)

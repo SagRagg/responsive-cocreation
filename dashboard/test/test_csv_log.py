@@ -1,3 +1,7 @@
+"""Tests for CsvLog in trial_tracker.py: the agreed column order, cell
+formatting (blanks, 1/0, fixed decimals), lazy file creation, flushing,
+no-overwrite naming and `~` expansion."""
+
 import csv
 
 from trial_tracker import CSV_COLUMNS, CsvLog, TrialTracker
@@ -82,6 +86,8 @@ def test_tilde_in_csv_dir_is_expanded(tmp_path, monkeypatch):
 
 
 def test_tracker_writes_one_csv_row_per_trial(tmp_path):
+    """End to end through TrialTracker: 30 trials give header + 30 rows that
+    a confusion matrix can be built from."""
     log = CsvLog(str(tmp_path), 'edge_run')
     tracker = TrialTracker('edge', 30, log.write)
     for n in range(30):

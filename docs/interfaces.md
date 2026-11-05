@@ -1,35 +1,51 @@
 # Interface contract
 
-This file is the agreement between the sim stream (ROS 2 Jazzy) and the
-perception stream (Pi). If either side wants to change something here,
-agree it first, then update this file in the same pull request as the code.
+This file is the agreement between the sim stream (ROS 2 Jazzy, `simulation`
+branch) and the perception stream (`perception` branch; the ROS node
+`perception/mnist_perception_node.py` is on `main`). If either side wants to
+change something here, agree it first, then update this file in the same pull
+request as the code.
 
 ## Setup
 - ROS 2 domain ID: 30 (set on every machine)
 - Standard ROS 2 message types only (`std_msgs`, `sensor_msgs`), no custom messages
+- Same RMW (Fast DDS, the Jazzy default) on every machine. For the cloud
+  placement discovery runs over Tailscale with `ROS_STATIC_PEERS` set to the
+  other machine's Tailscale address
 
 ## Topics
 
 | Topic | Type | Direction | Meaning |
 |---|---|---|---|
-| `/sketch_image` | `sensor_msgs/Image` | capture (VM) -> Pi | The human's sketch: 28x28 `mono8` MNIST digit, white on black |
-| `/digit_prediction` | `std_msgs/Int32` | Pi -> sim | Digit the Pi recognised (0-9) |
-| `/strokes` | `std_msgs/String` (JSON) | Pi -> sim | Clean template strokes for the recognised digit, plus trial number and the sketch's stamp |
-| `/turn_done` | `std_msgs/Bool` | sim -> capture, Pi | `true` when the arm finishes drawing. Always `Bool`, never `Empty` |
-| `/ground_truth` | `std_msgs/String` (JSON) | capture (VM) -> listeners | The true label of the sketch just sent. For measurement only (the dashboard); the perception node must not use it |
+| `/sketch_image` | `sensor_msgs/Image` | capture (VM) -> perception, dashboard | The human's sketch: 28x28 `mono8` MNIST digit, white on black |
+| `/digit_prediction` | `std_msgs/Int32` | perception -> arm, dashboard | Digit recognised (0-9) |
+| `/strokes` | `std_msgs/String` (JSON) | perception -> arm, dashboard | Clean template strokes for the recognised digit, plus trial number and the sketch's stamp |
+| `/turn_done` | `std_msgs/Bool` | arm (VM) -> capture, dashboard | `true` when the arm finishes drawing (also sent after a failed turn, so a run never stalls). Always `Bool`, never `Empty`. The perception node does not subscribe |
+| `/ground_truth` | `std_msgs/String` (JSON) | capture (VM) -> dashboard | The true label of the sketch just sent. For measurement only; the perception node must not use it |
+
+All five topics are reliable. `/sketch_image` is keep last 1, the others keep
+last 10. `arm_drawing` also publishes `/drawing_markers`
+(`visualization_msgs/MarkerArray`) for RViz; it stays inside the VM and is not
+part of the contract.
 
 ## Where the nodes run
-Perception and the stroke lookup run together on the machine under test (Pi
-for edge, cloud VM for cloud). They may be one process; the perception node
-already does both. Capture and the arm always run in the sim VM.
+| Node | Where | Code |
+|---|---|---|
+| Perception + stroke lookup (one process) | Machine under test: Pi 5 (edge) or GCP VM in Sydney (cloud) | `perception/mnist_perception_node.py` on `main` |
+| Telemetry dashboard | Same machine as perception | `dashboard/` |
+| `sketch_capture` | Sim VM, both placements | `sim/sketch_capture` |
+| `arm_drawing` + simulated Gen3 | Sim VM, both placements | `sim/arm_drawing` |
+
+Only the perception node and the dashboard move between the edge and cloud
+runs.
 
 ## Turn sequence
 1. Capture (VM) publishes `/sketch_image` (the human's sketch is done). The
    `header.stamp` of this message is the start of the latency clock.
-2. Pi receives the image and recognises the digit.
-3. Pi publishes `/digit_prediction`, then `/strokes`.
-4. Sim draws the strokes.
-5. Sim publishes `/turn_done`. Capture waits for this before publishing the
+2. Perception receives the image and recognises the digit.
+3. Perception publishes `/digit_prediction`, then `/strokes`.
+4. The arm draws the digit (from joint poses precomputed for that digit).
+5. The arm publishes `/turn_done`. Capture waits for this before publishing the
    next sketch, so there is exactly one sketch in flight per turn.
 
 ## Sketch format (`/sketch_image`)
@@ -97,18 +113,27 @@ per turn, `data` is a JSON object:
 - QoS: reliable, keep last 10.
 
 ## Latency timestamps
-- Capture stamps `/sketch_image` `header.stamp` at the moment of publishing.
-  Latency is measured from this stamp.
+- Capture stamps `/sketch_image` `header.stamp` at the moment of publishing
+  (VM ROS time). Latency is measured from this stamp.
 - `/digit_prediction` and `/strokes` have no header. `/strokes` carries the
-  sketch's stamp back as `source_stamp`, and the sim logs its own receive time
-  for both topics, so sketch-to-strokes latency = sim receive time of
-  `/strokes` minus `source_stamp`.
+  sketch's stamp back as `source_stamp`.
 - Logs from all nodes join on the sketch stamp (`source_stamp` in `/strokes`,
   `stamp` in `/ground_truth`), not on trial number: the perception node keeps
   its own counter, which can drift from capture's.
-- Clocks must be synced across machines (chrony), or latency is measured
-  as round-trip on the Pi's clock only.
+- The dashboard (on the perception machine) records `compute_ms` =
+  `/strokes` receive time minus `/sketch_image` receive time, both on its own
+  clock, and `e2e_ms` = `/strokes` receive time minus the sketch stamp, which
+  mixes the VM clock with the perception machine's. `network_ms` is
+  `e2e_ms - compute_ms` and `turn_ms` is `/turn_done` receive time minus the
+  sketch stamp. See [`dashboard/README.md`](../dashboard/README.md).
+- `arm_drawing` logs its own receive times for both topics.
+  `strokes_latency_ms` = VM receive time of `/strokes` minus `source_stamp`:
+  the full round trip VM -> perception -> VM, on the VM clock only.
+- Any figure that compares the sketch stamp with another machine's clock
+  (`e2e_ms`, `network_ms`, `turn_ms`) needs the clocks synced with chrony,
+  and is only as accurate as that sync.
 
 ## Open questions
-- Adding a `publish_stamp` to the `/strokes` JSON would split the latency into
-  compute time and network time.
+- Adding a `publish_stamp` (perception's own clock) to the `/strokes` JSON
+  would let `compute_ms` exclude the local DDS hop. The dashboard already uses
+  it when present; the perception node on `main` does not send it yet.

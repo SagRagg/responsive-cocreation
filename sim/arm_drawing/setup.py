@@ -1,3 +1,9 @@
+"""Package setup for the arm_drawing ROS 2 package (ament_python).
+
+Installs the drawing_node and make_joint_poses executables, the launch
+file and the precomputed joint pose table in config/.
+"""
+
 import os
 from glob import glob
 

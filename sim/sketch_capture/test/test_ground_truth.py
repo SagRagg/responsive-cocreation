@@ -1,3 +1,5 @@
+"""Tests for the /ground_truth JSON payload (sketch_capture.ground_truth)."""
+
 import json
 
 import numpy as np
@@ -16,6 +18,8 @@ def test_payload_fields_and_stamp():
 
 
 def test_numpy_integers_are_serialised():
+    """The node passes numpy integers from the MNIST arrays, which
+    json.dumps cannot encode unless converted."""
     text = ground_truth_json(np.int64(1), np.int64(12), np.uint8(4),
                              np.int32(5), np.uint32(6))
     data = json.loads(text)

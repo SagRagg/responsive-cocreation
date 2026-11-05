@@ -65,7 +65,7 @@ if [[ ${1:-} == new-run ]]; then mode=new-run; shift; fi
 placement=${1:-}
 [[ $placement == edge || $placement == cloud ]] || die "usage: $0 edge|cloud|new-run edge|cloud|stop"
 
-# ---- preflight: fail early, say what is missing ----------------------------
+# Preflight: fail early, say what is missing
 command -v tmux >/dev/null            || die "tmux is not installed"
 [[ -f $ROS_SETUP ]]                   || die "ROS setup not found: $ROS_SETUP"
 [[ -x $VENV/bin/python ]]             || die "venv not found: $VENV"
@@ -93,7 +93,7 @@ else
     shown=${shown:-<this-machine-ip>}
 fi
 
-# ---- start ------------------------------------------------------------------
+# Start
 mkdir -p "$CSV_DIR"
 stamp=$(date +%Y%m%d-%H%M%S)
 env_cmd="source $(printf %q "$ROS_SETUP") && export ROS_DOMAIN_ID=$DOMAIN"

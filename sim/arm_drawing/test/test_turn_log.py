@@ -1,9 +1,13 @@
+"""Tests for the arm_drawing turn timing CSV (arm_drawing.turn_log)."""
+
 import csv
 
 from arm_drawing.turn_log import COLUMNS, TurnLog
 
 
 def test_rows_latency_and_blanks(tmp_path):
+    """Header matches COLUMNS, the latency is derived from the stamps, and
+    missing values (as in a failed turn) are written as blanks."""
     path = tmp_path / 'nested' / 'turns.csv'
     with TurnLog(str(path)) as log:
         log.write({'trial_number': 1, 'digit': 7, 'confidence': 0.5,
