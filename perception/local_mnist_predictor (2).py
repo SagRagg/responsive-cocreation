@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""Run an interactive local demonstration of the trained MNIST digit classifier.
+
+Place mnist_cnn_baseline.keras beside this script. Users can select a test-image
+index or request a random image, inspect class scores and view the result.
+This script does not measure latency, upload metrics or control a robot."""
 
 from pathlib import Path
 import random
@@ -8,24 +13,32 @@ import numpy as np
 import tensorflow as tf
 
 
+# Locate the model relative to this file rather than the terminal directory.
 MODEL_PATH = Path(__file__).resolve().parent / "mnist_cnn_baseline.keras"
 
 
 def load_data():
+    """Return the held-out MNIST test images and labels, discarding training data."""
     (_, _), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
     return x_test, y_test
 
 
 def preprocess(image):
+    """Convert pixel values to float32 in 0–1 and create a (1, 28, 28, 1) input."""
     # Same preprocessing used during training.
     image = image.astype("float32") / 255.0
+    # Add one batch dimension and one grayscale channel for the CNN.
     return image.reshape(1, 28, 28, 1)
 
 
 def predict_digit(model, image):
+    """Return the predicted digit, its confidence and all ten class scores.
+
+    Confidence is the largest model score and does not guarantee correctness."""
     model_input = preprocess(image)
     predictions = model.predict(model_input, verbose=0)[0]
 
+    # Model output positions 0–9 map directly to the ten digit classes.
     predicted_digit = int(np.argmax(predictions))
     confidence = float(np.max(predictions))
 
@@ -33,6 +46,7 @@ def predict_digit(model, image):
 
 
 def show_result(image, true_digit, predicted_digit, confidence):
+    """Display the input image with its true label, prediction and confidence."""
     plt.figure(figsize=(4, 4))
     plt.imshow(image, cmap="gray")
     plt.title(
@@ -40,10 +54,12 @@ def show_result(image, true_digit, predicted_digit, confidence):
         f"Confidence: {confidence * 100:.2f}%"
     )
     plt.axis("off")
+    # In blocking backends, close the plot window to return to the prompt.
     plt.show()
 
 
 def main():
+    """Validate the model path and run the interactive test-image selection loop."""
     if not MODEL_PATH.exists():
         raise FileNotFoundError(
             f"Model not found: {MODEL_PATH}\n"
@@ -70,6 +86,7 @@ def main():
             print("Exiting.")
             break
 
+        # Blank input samples randomly; otherwise validate the requested test index.
         if choice == "":
             index = random.randrange(len(x_test))
         else:
@@ -83,6 +100,7 @@ def main():
                 print(f"Index must be between 0 and {len(x_test) - 1}.")
                 continue
 
+        # The test label provides the ground truth for checking recognition.
         image = x_test[index]
         true_digit = int(y_test[index])
 
@@ -98,6 +116,7 @@ def main():
         print(f"Confidence:      {confidence * 100:.2f}%")
         print("------------------------------")
 
+        # Show every class score to help inspect ambiguous model predictions.
         print("Class probabilities:")
         for digit, probability in enumerate(predictions):
             print(f"  {digit}: {probability * 100:.2f}%")
