@@ -30,7 +30,6 @@ Paths below are relative to `perception/` in the supplied repository snapshot.
 | `prediction_listener_node.py` | Native ROS listener for digit predictions |
 | `mnist_source_node.py` | Older native ROS source; incompatible completion-message type in the reviewed snapshot |
 | `README_GCP_CNN.md` | Detailed standalone GCP setup and logging guide |
-| `GCP_VM_BigQuery_Partner_Handoff.md` | Partner permissions, VM access and BigQuery handoff |
 
 The integrated capture and actuation packages live outside this folder:
 
